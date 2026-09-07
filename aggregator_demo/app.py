@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from hmac import compare_digest
 from pathlib import Path
 from typing import Annotated
 from uuid import UUID
@@ -26,6 +27,8 @@ from .contracts import (
     ControlSimulationListResponse,
     ControlPolicyRejectionResponse,
     ControlSimulationResponse,
+    DispatchCreateRequest,
+    EmergencySafeStateRequest,
     DemoInputListResponse,
     ErrorResponse,
     FailureDrillCreateRequest,
@@ -33,6 +36,8 @@ from .contracts import (
     NoticeCreateRequest,
     NoticeListResponse,
     NoticeResponse,
+    OTDispatchAttemptListResponse,
+    OTDispatchAttemptResponse,
     RunCreateRequest,
     RunListResponse,
     RunResponse,
@@ -40,8 +45,10 @@ from .contracts import (
     RunStatus,
     RunTimelineResponse,
     RunType,
+    SecurityEventListResponse,
 )
 from .control_repository import ControlSimulationRepository
+from .dispatch_repository import DispatchEvidenceRepository, DispatchRejectedError
 from .database import (
     create_database_engine,
     create_schema,
@@ -63,6 +70,7 @@ from .ot_security import (
     ControlPolicyError,
     authenticate_control_key,
 )
+from .ot_gateway import OTGatewayClient
 from .run_repository import RunConflictError, RunNotFoundError, RunRepository
 
 
@@ -87,6 +95,8 @@ def create_app(
     initialize_schema: bool | None = None,
     input_root: Path | None = None,
     control_api_key: str | None = None,
+    control_gateway=None,
+    emergency_api_key: str | None = None,
 ) -> FastAPI:
     engine = create_database_engine(database_url)
     if initialize_schema is None:
@@ -108,6 +118,16 @@ def create_app(
     application.state.control_api_key = control_api_key or os.environ.get(
         "DEMO_CONTROL_API_KEY"
     )
+    gateway_url = os.environ.get("DEMO_OT_GATEWAY_URL")
+    gateway_key = os.environ.get("DEMO_GATEWAY_API_KEY")
+    application.state.control_gateway = control_gateway or (
+        OTGatewayClient(gateway_url, gateway_key)
+        if gateway_url and gateway_key
+        else None
+    )
+    application.state.emergency_api_key = emergency_api_key or os.environ.get(
+        "DEMO_EMERGENCY_API_KEY"
+    )
     allowed_origins = [
         origin.strip()
         for origin in os.environ.get(
@@ -127,6 +147,7 @@ def create_app(
             "Content-Type",
             "Idempotency-Key",
             "X-Control-Key",
+            "X-Emergency-Key",
             "X-Operator-ID",
         ],
     )
@@ -338,7 +359,7 @@ def create_app(
         summary="Get a terminal run result or explicit failure",
         responses={
             404: {"model": ErrorResponse},
-            409: {"model": ControlPolicyRejectionResponse},
+            409: {"model": ErrorResponse},
         },
     )
     def get_run_result(run_id: UUID, session: SessionDependency):
@@ -559,6 +580,203 @@ def create_app(
             limit=limit,
             offset=offset,
         )
+
+    @application.post(
+        "/api/v1/runs/{run_id}/dispatch-simulations",
+        response_model=OTDispatchAttemptResponse,
+        status_code=status.HTTP_201_CREATED,
+        tags=["ot-security"],
+        summary="Dispatch one approved schedule interval through the synthetic OT path",
+        responses={
+            401: {"model": OTDispatchAttemptResponse},
+            404: {"model": ErrorResponse},
+            409: {"model": OTDispatchAttemptResponse},
+            503: {"model": OTDispatchAttemptResponse},
+        },
+    )
+    def create_dispatch_simulation(
+        run_id: UUID,
+        request: DispatchCreateRequest,
+        session: SessionDependency,
+        control_key: Annotated[
+            str | None,
+            Header(alias="X-Control-Key", max_length=256),
+        ] = None,
+        operator_id: Annotated[
+            str,
+            Header(alias="X-Operator-ID", min_length=1, max_length=128),
+        ] = "demo-operator",
+    ):
+        configured = application.state.control_api_key
+        accepted = bool(
+            configured and control_key and compare_digest(control_key, configured)
+        )
+        try:
+            return DispatchEvidenceRepository(
+                session,
+                application.state.input_registry,
+                application.state.control_gateway,
+            ).dispatch(
+                run_id,
+                interval_index=request.interval_index,
+                requested_by=operator_id,
+                credential_accepted=accepted,
+                credential_configured=bool(configured),
+                command_id=request.command_id,
+                issued_at=request.issued_at,
+                expires_at=request.expires_at,
+            )
+        except DispatchRejectedError as exc:
+            return JSONResponse(
+                status_code=exc.status_code,
+                content=exc.attempt.model_dump(mode="json"),
+            )
+        except RunNotFoundError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content=ErrorResponse(
+                    code="run_not_found", message=str(exc)
+                ).model_dump(mode="json"),
+            )
+
+    @application.get(
+        "/api/v1/runs/{run_id}/dispatch-simulations",
+        response_model=OTDispatchAttemptListResponse,
+        tags=["ot-security"],
+        summary="List accepted, rejected, and failed synthetic dispatch attempts",
+        responses={401: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
+    )
+    def list_dispatch_simulations(
+        run_id: UUID,
+        session: SessionDependency,
+        control_key: Annotated[
+            str | None,
+            Header(alias="X-Control-Key", max_length=256),
+        ] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 50,
+        offset: Annotated[int, Query(ge=0)] = 0,
+    ):
+        try:
+            authenticate_control_key(control_key, application.state.control_api_key)
+            return OTDispatchAttemptListResponse(
+                items=DispatchEvidenceRepository(
+                    session,
+                    application.state.input_registry,
+                    application.state.control_gateway,
+                ).list_attempts(run_id=run_id, limit=limit, offset=offset),
+                limit=limit,
+                offset=offset,
+            )
+        except ControlAuthenticationError as exc:
+            disabled = not application.state.control_api_key
+            return JSONResponse(
+                status_code=(503 if disabled else 401),
+                content=ErrorResponse(
+                    code="dispatch_disabled" if disabled else "control_authentication_failed",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+
+    @application.get(
+        "/api/v1/security/events",
+        response_model=SecurityEventListResponse,
+        tags=["ot-security"],
+        summary="List structured synthetic OT security events",
+    )
+    def list_security_events(
+        session: SessionDependency,
+        limit: Annotated[int, Query(ge=1, le=200)] = 100,
+        offset: Annotated[int, Query(ge=0)] = 0,
+    ) -> SecurityEventListResponse:
+        return SecurityEventListResponse(
+            items=DispatchEvidenceRepository(
+                session,
+                application.state.input_registry,
+                application.state.control_gateway,
+            ).list_events(limit=limit, offset=offset),
+            limit=limit,
+            offset=offset,
+        )
+
+    @application.post(
+        "/api/v1/emergency-safe-state",
+        response_model=OTDispatchAttemptResponse,
+        status_code=status.HTTP_201_CREATED,
+        tags=["ot-security"],
+        summary="Activate zero-power safe state on the synthetic controller",
+        responses={
+            401: {"model": OTDispatchAttemptResponse},
+            409: {"model": OTDispatchAttemptResponse},
+            503: {"model": OTDispatchAttemptResponse},
+        },
+    )
+    def activate_emergency_safe_state(
+        request: EmergencySafeStateRequest,
+        session: SessionDependency,
+        emergency_key: Annotated[
+            str | None,
+            Header(alias="X-Emergency-Key", max_length=256),
+        ] = None,
+        operator_id: Annotated[
+            str,
+            Header(alias="X-Operator-ID", min_length=1, max_length=128),
+        ] = "demo-operator",
+    ):
+        configured = application.state.emergency_api_key
+        accepted = bool(
+            configured and emergency_key and compare_digest(emergency_key, configured)
+        )
+        try:
+            return DispatchEvidenceRepository(
+                session,
+                application.state.input_registry,
+                application.state.control_gateway,
+            ).safe_state(
+                reason=request.reason,
+                requested_by=operator_id,
+                credential_accepted=accepted,
+                credential_configured=bool(configured),
+            )
+        except DispatchRejectedError as exc:
+            return JSONResponse(
+                status_code=exc.status_code,
+                content=exc.attempt.model_dump(mode="json"),
+            )
+
+    @application.get(
+        "/api/v1/controller-status",
+        tags=["ot-security"],
+        summary="Read the synthetic controller heartbeat through the gateway",
+        responses={401: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
+    )
+    def controller_status(
+        control_key: Annotated[
+            str | None,
+            Header(alias="X-Control-Key", max_length=256),
+        ] = None,
+    ):
+        try:
+            authenticate_control_key(control_key, application.state.control_api_key)
+            if application.state.control_gateway is None:
+                raise RuntimeError("synthetic OT gateway is not configured")
+            return application.state.control_gateway.controller_status()
+        except ControlAuthenticationError as exc:
+            disabled = not application.state.control_api_key
+            return JSONResponse(
+                status_code=503 if disabled else 401,
+                content=ErrorResponse(
+                    code="dispatch_disabled" if disabled else "control_authentication_failed",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+        except Exception:
+            return JSONResponse(
+                status_code=503,
+                content=ErrorResponse(
+                    code="controller_heartbeat_lost",
+                    message="The synthetic controller heartbeat is unavailable.",
+                ).model_dump(mode="json"),
+            )
 
     @application.post(
         "/api/v1/runs/{run_id}/control-simulations",

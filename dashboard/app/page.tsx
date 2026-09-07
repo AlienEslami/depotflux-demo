@@ -117,33 +117,53 @@ type Approval = {
 type ControlPolicyCheck = {
   code: string;
   label: string;
-  passed: true;
+  passed: boolean;
   detail: string;
 };
 
 type ControlSimulation = {
   id: string;
-  run_id: string;
-  interval_index: number;
-  setpoint_kw: number;
-  unit_id: number;
-  register_address: number;
-  register_scale_kw: number;
-  modbus_frame_hex: string;
-  result_sha256: string;
-  policy_version: 'ot-policy-v1';
+  run_id: string | null;
+  interval_index: number | null;
+  command_id: string;
+  correlation_id: string;
+  action: 'dispatch' | 'safe_state';
+  decision: 'accepted' | 'rejected' | 'failed';
+  reason_code: string;
+  reason_message: string;
+  setpoint_kw: number | null;
+  modbus_frame_hex: string | null;
+  response_frame_hex: string | null;
   policy_checks: ControlPolicyCheck[];
+  controller_response: {
+    measured_site_power_kw?: number;
+    controller_state?: string;
+    alarm_state?: number;
+    heartbeat?: number;
+    transport_attempts?: number;
+  } | null;
   simulated_only: true;
   requested_by: string;
-  created_at: string;
+  completed_at: string;
 };
 
 type ControlPolicyRejection = {
-  code: 'control_policy_rejected';
-  message: string;
-  failed_check: string;
-  interval_index: number;
-  run_id: string;
+  reason_code: string;
+  reason_message: string;
+  policy_checks: ControlPolicyCheck[];
+  interval_index: number | null;
+  run_id: string | null;
+  correlation_id: string;
+};
+
+type SecurityEvent = {
+  id: string;
+  event_type: string;
+  severity: string;
+  correlation_id: string;
+  outcome: string;
+  reason_code: string;
+  occurred_at: string;
 };
 
 type AuditEvent = {
@@ -294,6 +314,7 @@ export default function Home() {
   const [controlInterval, setControlInterval] = useState('1');
   const [controlRecords, setControlRecords] = useState<ControlSimulation[]>([]);
   const [controlRejection, setControlRejection] = useState<ControlPolicyRejection | null>(null);
+  const [securityEvents, setSecurityEvents] = useState<SecurityEvent[]>([]);
   const [dispatching, setDispatching] = useState<'accepted' | 'rejected' | null>(null);
   const [message, setMessage] = useState('');
 
@@ -335,9 +356,9 @@ export default function Home() {
   );
   const selectedControlRecord =
     selectedRunControlRecords.find(
-      (record) => record.interval_index === Number(controlInterval),
+      (record) => record.interval_index === Number(controlInterval) && record.decision === 'accepted',
     )
-    ?? selectedRunControlRecords[selectedRunControlRecords.length - 1]
+    ?? selectedRunControlRecords.find((record) => record.decision === 'accepted')
     ?? null;
   const selectedControlRejection =
     controlRejection?.run_id === selectedRunId ? controlRejection : null;
@@ -634,7 +655,7 @@ export default function Home() {
     setMessage('');
     try {
       const response = await fetch(
-        `${API_BASE}/api/v1/runs/${selectedRunId}/control-simulations`,
+        `${API_BASE}/api/v1/runs/${selectedRunId}/dispatch-simulations`,
         {
           method: 'POST',
           headers: {
@@ -645,7 +666,7 @@ export default function Home() {
           body: JSON.stringify({ interval_index: intervalIndex }),
         },
       );
-      const body = (await response.json()) as ControlSimulation | ControlPolicyRejection | { message?: string };
+      const body = (await response.json()) as ControlSimulation | { message?: string };
       if (expectRejection) {
         if (response.status !== 409) {
           throw new Error(
@@ -654,13 +675,16 @@ export default function Home() {
               : ('message' in body ? body.message : undefined) ?? 'The negative test failed unexpectedly.',
           );
         }
-        const rejected = body as ControlPolicyRejection;
+        const rejected = body as ControlSimulation;
         setControlRejection({
-          ...rejected,
+          reason_code: rejected.reason_code,
+          reason_message: rejected.reason_message,
+          policy_checks: rejected.policy_checks,
+          correlation_id: rejected.correlation_id,
           interval_index: intervalIndex,
           run_id: selectedRunId,
         });
-        setMessage(`Policy correctly rejected interval ${intervalIndex}; no frame was generated.`);
+        setMessage(`Policy correctly rejected interval ${intervalIndex}; no Modbus frame reached the controller.`);
         return;
       }
       if (!response.ok) {
@@ -668,7 +692,7 @@ export default function Home() {
       }
       const created = body as ControlSimulation;
       const listResponse = await fetch(
-        `${API_BASE}/api/v1/runs/${selectedRunId}/control-simulations`,
+        `${API_BASE}/api/v1/runs/${selectedRunId}/dispatch-simulations`,
         { headers: { 'X-Control-Key': controlKey } },
       );
       if (listResponse.ok) {
@@ -680,8 +704,13 @@ export default function Home() {
           created,
         ]);
       }
+      const eventResponse = await fetch(`${API_BASE}/api/v1/security/events?limit=8`);
+      if (eventResponse.ok) {
+        const events = (await eventResponse.json()) as { items: SecurityEvent[] };
+        setSecurityEvents(events.items);
+      }
       setMessage(
-        `Safe simulation recorded for interval ${created.interval_index}; the frame was not transmitted.`,
+        `Interval ${created.interval_index} traversed the software-only gateway and synthetic Modbus/TCP controller.`,
       );
       await loadRun(selectedRunId);
     } catch (error) {
@@ -1111,7 +1140,7 @@ export default function Home() {
                     </div>
                   </div>
                   <Badge variant="outline" className="border-emerald-300/20 text-emerald-200">
-                    No network transmission
+                    Software-only TCP path
                   </Badge>
                 </div>
               </CardHeader>
@@ -1179,7 +1208,7 @@ export default function Home() {
                       onClick={() => void simulateControlCommand(false)}
                     >
                       <ShieldCheck className="size-4" />
-                      {dispatching === 'accepted' ? 'Evaluating…' : 'Generate safe frame'}
+                      {dispatching === 'accepted' ? 'Dispatching…' : 'Dispatch to simulator'}
                     </Button>
                     <Button
                       variant="outline"
@@ -1200,14 +1229,15 @@ export default function Home() {
                   {selectedControlRejection ? (
                     <div className="rounded-lg border border-rose-300/20 bg-rose-300/[0.055] p-4">
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-rose-100">Command rejected before encoding</p>
+                        <p className="text-sm font-semibold text-rose-100">Command rejected by policy</p>
                         <Badge variant="outline" className="border-rose-300/25 text-rose-200">BLOCKED</Badge>
                       </div>
-                      <p className="mt-3 text-sm leading-6 text-slate-300">{selectedControlRejection.message}</p>
+                      <p className="mt-3 text-sm leading-6 text-slate-300">{selectedControlRejection.reason_message}</p>
                       <div className="mt-3 grid gap-2 font-mono text-xs text-rose-200/75 sm:grid-cols-2">
-                        <span>CHECK {selectedControlRejection.failed_check}</span>
+                        <span>CHECK {selectedControlRejection.reason_code}</span>
                         <span>INTERVAL {selectedControlRejection.interval_index}</span>
                       </div>
+                      <p className="mt-2 break-all font-mono text-[11px] text-slate-500">CORRELATION {selectedControlRejection.correlation_id}</p>
                     </div>
                   ) : selectedControlRecord ? (
                     <div className="space-y-5">
@@ -1215,17 +1245,19 @@ export default function Home() {
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-[0.11em] text-muted-foreground">Encoded setpoint</p>
                           <p className="mt-1 font-mono text-3xl font-semibold text-cyan-200">
-                            {formatNumber(selectedControlRecord.setpoint_kw, 1)} <span className="text-base text-muted-foreground">kW</span>
+                            {formatNumber(selectedControlRecord.setpoint_kw ?? undefined, 1)} <span className="text-base text-muted-foreground">kW</span>
                           </p>
                         </div>
-                        <p className="font-mono text-xs text-slate-500">{selectedControlRecord.policy_version}</p>
+                        <p className="font-mono text-xs text-slate-500">OT-DISPATCH-POLICY-V1</p>
                       </div>
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.11em] text-muted-foreground">Policy checks</p>
                         <ul className="mt-3 space-y-3">
                           {selectedControlRecord.policy_checks.map((check) => (
                             <li key={check.code} className="flex gap-3">
-                              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-300" />
+                              {check.passed
+                                ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-300" />
+                                : <AlertTriangle className="mt-0.5 size-4 shrink-0 text-rose-300" />}
                               <div>
                                 <p className="text-sm font-medium text-slate-200">{check.label}</p>
                                 <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{check.detail}</p>
@@ -1240,11 +1272,16 @@ export default function Home() {
                           <Badge variant="outline" className="border-white/10 text-slate-400">SIMULATED</Badge>
                         </div>
                         <code className="mt-3 block break-all rounded-lg border border-cyan-300/10 bg-cyan-300/[0.04] p-3 font-mono text-sm leading-6 text-cyan-100">
-                          {formatModbusFrame(selectedControlRecord.modbus_frame_hex)}
+                          {selectedControlRecord.modbus_frame_hex
+                            ? formatModbusFrame(selectedControlRecord.modbus_frame_hex)
+                            : 'No frame generated'}
                         </code>
                         <p className="mt-2 text-xs text-muted-foreground">
-                          Unit {selectedControlRecord.unit_id} · register {selectedControlRecord.register_address} · {selectedControlRecord.register_scale_kw} kW/count
+                          Controller {displayStatus(selectedControlRecord.controller_response?.controller_state ?? 'unknown')}
+                          {' · '}measured {formatNumber(selectedControlRecord.controller_response?.measured_site_power_kw, 1)} kW
+                          {' · '}heartbeat {selectedControlRecord.controller_response?.heartbeat ?? '—'}
                         </p>
+                        <p className="mt-2 break-all font-mono text-[11px] text-slate-500">CORRELATION {selectedControlRecord.correlation_id}</p>
                       </div>
                     </div>
                   ) : (
@@ -1262,10 +1299,34 @@ export default function Home() {
               </CardContent>
               <div className="border-t border-white/8 px-5 py-3 text-xs text-muted-foreground">
                 {controlEligible
-                  ? `RUN-${shortRunId(selectedRunId)} is approved, hash-bound, and eligible for safe simulation.`
-                  : 'Only a successful, validated, operator-approved run can reach the encoder.'}
+                  ? `RUN-${shortRunId(selectedRunId)} is approved, hash-bound, and eligible for software-only dispatch.`
+                  : 'Only a successful, validated, operator-approved run can reach the supervisory gateway.'}
               </div>
             </Card>
+
+            {securityEvents.length ? (
+              <Card className="border-white/10 bg-card/80">
+                <CardHeader className="border-b border-white/8 pb-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Structured monitoring evidence</p>
+                  <CardTitle className="mt-1 text-lg">Recent OT security events</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="divide-y divide-white/8">
+                    {securityEvents.map((event) => (
+                      <div key={event.id} className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_auto]">
+                        <div>
+                          <p className="text-sm font-medium capitalize">{displayStatus(event.event_type)}</p>
+                          <p className="mt-1 font-mono text-xs text-muted-foreground">{event.reason_code} · {event.correlation_id.slice(0, 12)}</p>
+                        </div>
+                        <Badge variant="outline" className={event.outcome === 'accepted' ? 'border-emerald-300/20 text-emerald-200' : 'border-rose-300/20 text-rose-200'}>
+                          {event.severity} · {event.outcome}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
 
             {message ? (
               <output className="block rounded-lg border border-cyan-300/15 bg-cyan-300/5 px-4 py-3 text-sm text-cyan-100">

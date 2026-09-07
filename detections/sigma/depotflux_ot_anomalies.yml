@@ -1,0 +1,90 @@
+title: DepotFlux Rejected OT Dispatch Command
+id: 0278bfc2-3e04-4e0f-b55d-45edb3a7a78f
+status: experimental
+description: Detects policy, freshness, replay, hash, or credential rejection in the software-only DepotFlux OT lab.
+references:
+  - https://attack.mitre.org/techniques/T0836/
+author: DepotFlux demonstrator
+date: 2026-09-07
+tags:
+  - attack.ics
+  - attack.t0836
+logsource:
+  category: application
+  product: depotflux
+detection:
+  selection:
+    event_type:
+      - dispatch_rejected
+      - replayed_command_rejected
+  condition: selection
+falsepositives:
+  - Expected negative tests in an authorized local demonstration
+level: high
+---
+title: DepotFlux Direct PLC Access Or Register Scan
+id: 1b103c59-35ab-4e24-8b1c-cc5f68d5ee41
+status: experimental
+description: Detects rejected direct access or broad undefined-register reads against the synthetic PLC.
+references:
+  - https://attack.mitre.org/techniques/T0846/
+  - https://attack.mitre.org/techniques/T0846/001/
+author: DepotFlux demonstrator
+date: 2026-09-07
+tags:
+  - attack.ics
+  - attack.t0846
+  - attack.t0846.001
+logsource:
+  category: application
+  product: depotflux
+detection:
+  selection:
+    event_type:
+      - direct_plc_access_rejected
+      - register_scan_rejected
+  condition: selection
+falsepositives:
+  - Authorized network-isolation or scan demonstration
+level: high
+---
+title: DepotFlux Controller Heartbeat Or Exchange Failure
+id: 83a9af51-0dc7-4f96-a70a-4b72f1ad2184
+status: experimental
+description: Detects a failed synthetic controller exchange or a heartbeat that stopped changing.
+references:
+  - https://attack.mitre.org/techniques/T0814/
+author: DepotFlux demonstrator
+date: 2026-09-07
+tags:
+  - attack.ics
+  - attack.t0814
+logsource:
+  category: application
+  product: depotflux
+detection:
+  selection:
+    event_type:
+      - controller_exchange_failed
+      - controller_heartbeat_lost
+  condition: selection
+falsepositives:
+  - Planned controller shutdown or availability drill
+level: critical
+---
+title: DepotFlux Emergency Safe State Activated
+id: b0a213ef-f3f0-41f4-aab8-cf0727f8e451
+status: experimental
+description: Detects every accepted software-only emergency safe-state action for mandatory review.
+author: DepotFlux demonstrator
+date: 2026-09-07
+logsource:
+  category: application
+  product: depotflux
+detection:
+  selection:
+    event_type: emergency_safe_state_activated
+  condition: selection
+falsepositives:
+  - Authorized recovery drill; still requires review
+level: high

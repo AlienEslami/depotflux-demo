@@ -1,0 +1,187 @@
+name: depotflux-ot-lab
+
+x-python-service: &python-service
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  dashboard:
+    build:
+      context: dashboard
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      enterprise_operator: {}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    <<: *python-service
+    command: ["/app/scripts/container-api.sh"]
+    environment:
+      DEMO_DATABASE_URL: postgresql+psycopg://depotflux:${DEMO_DATABASE_PASSWORD:?set DEMO_DATABASE_PASSWORD}@database:5432/depotflux
+      DEMO_AUTO_CREATE_SCHEMA: "false"
+      DEMO_HOST: 0.0.0.0
+      DEMO_PORT: "8000"
+      DEMO_ALLOWED_ORIGINS: http://127.0.0.1:3000,http://localhost:3000
+      DEMO_CONTROL_API_KEY: ${DEMO_CONTROL_API_KEY:?set DEMO_CONTROL_API_KEY}
+      DEMO_EMERGENCY_API_KEY: ${DEMO_EMERGENCY_API_KEY:?set DEMO_EMERGENCY_API_KEY}
+      DEMO_GATEWAY_API_KEY: ${DEMO_GATEWAY_API_KEY:?set DEMO_GATEWAY_API_KEY}
+      DEMO_OT_GATEWAY_URL: http://ot-gateway:8081
+      DA_SOLVER_ORDER: appsi_highs,highs
+      RT_SOLVER_ORDER: appsi_highs,highs
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks:
+      enterprise_operator: {}
+      industrial_dmz: {}
+      supervisory_ems: {}
+      monitoring: {}
+    depends_on:
+      database:
+        condition: service_healthy
+      ot-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  worker:
+    <<: *python-service
+    command: ["python", "-m", "aggregator_demo.worker", "--poll-interval", "1"]
+    environment:
+      DEMO_DATABASE_URL: postgresql+psycopg://depotflux:${DEMO_DATABASE_PASSWORD:?set DEMO_DATABASE_PASSWORD}@database:5432/depotflux
+      DA_SOLVER_ORDER: appsi_highs,highs
+      RT_SOLVER_ORDER: appsi_highs,highs
+    networks:
+      industrial_dmz: {}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  database:
+    image: postgres:17.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: depotflux
+      POSTGRES_USER: depotflux
+      POSTGRES_PASSWORD: ${DEMO_DATABASE_PASSWORD:?set DEMO_DATABASE_PASSWORD}
+    volumes:
+      - demo_database:/var/lib/postgresql/data
+    networks:
+      industrial_dmz: {}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U depotflux -d depotflux"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  ot-gateway:
+    <<: *python-service
+    command: ["python", "-m", "aggregator_demo.ot_gateway"]
+    environment:
+      DEMO_GATEWAY_HOST: 0.0.0.0
+      DEMO_GATEWAY_PORT: "8081"
+      DEMO_GATEWAY_API_KEY: ${DEMO_GATEWAY_API_KEY:?set DEMO_GATEWAY_API_KEY}
+      DEMO_PLC_HOST: plc-simulator
+      DEMO_PLC_PORT: "1502"
+      DEMO_PLC_TIMEOUT_SECONDS: "1"
+      DEMO_PLC_RETRIES: "2"
+    networks:
+      supervisory_ems: {}
+      control_plc:
+        ipv4_address: 172.29.40.5
+    depends_on:
+      plc-simulator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/health/ready', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  plc-simulator:
+    <<: *python-service
+    command: ["python", "-m", "aggregator_demo.plc_simulator"]
+    environment:
+      DEMO_PLC_HOST: 0.0.0.0
+      DEMO_PLC_PORT: "1502"
+      DEMO_PLC_SITE_CAPACITY_KW: "6400"
+      DEMO_PLC_ALLOWED_CIDRS: 172.29.40.5/32
+    networks:
+      control_plc:
+        ipv4_address: 172.29.40.10
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1',1502),2); s.close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  security-monitor:
+    <<: *python-service
+    command: ["python", "-m", "aggregator_demo.security_monitor"]
+    environment:
+      DEMO_API_URL: http://api:8000
+      DEMO_MONITOR_HOST: 0.0.0.0
+      DEMO_MONITOR_PORT: "9100"
+    ports:
+      - "127.0.0.1:9100:9100"
+    networks:
+      enterprise_operator: {}
+      monitoring: {}
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9100/health/live', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+networks:
+  enterprise_operator:
+    name: depotflux-enterprise-operator
+    ipam:
+      config:
+        - subnet: 172.29.10.0/24
+  industrial_dmz:
+    name: depotflux-industrial-dmz
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.29.20.0/24
+  supervisory_ems:
+    name: depotflux-supervisory-ems
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.29.30.0/24
+  control_plc:
+    name: depotflux-control-plc
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.29.40.0/24
+  monitoring:
+    name: depotflux-monitoring
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.29.50.0/24
+
+volumes:
+  demo_database:
+    name: depotflux-demo-database

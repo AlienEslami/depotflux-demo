@@ -1,0 +1,29 @@
+// Example only. Assumes structured events are normalized into DepotFluxSecurity_CL.
+// Replace field/table names for the actual collector; no live Sentinel validation is claimed.
+
+// Rejected command sequence by actor and reason.
+DepotFluxSecurity_CL
+| where TimeGenerated > ago(1h)
+| where event_type_s in ("dispatch_rejected", "replayed_command_rejected")
+| summarize Attempts=count(), Correlations=make_set(correlation_id_g, 20)
+    by actor_s, reason_code_s, bin(TimeGenerated, 5m)
+| where Attempts >= 3 or reason_code_s in ("invalid_credential", "replayed_command")
+
+// Direct-controller access and register-discovery behavior.
+DepotFluxSecurity_CL
+| where TimeGenerated > ago(24h)
+| where event_type_s in ("direct_plc_access_rejected", "register_scan_rejected")
+| project TimeGenerated, event_type_s, peer_ip_s, start_address_d, quantity_d,
+    correlation_id_g
+
+// Availability and safe-state investigation timeline.
+DepotFluxSecurity_CL
+| where TimeGenerated > ago(24h)
+| where event_type_s in (
+    "controller_exchange_failed",
+    "controller_heartbeat_lost",
+    "emergency_safe_state_activated"
+  )
+| order by TimeGenerated asc
+| project TimeGenerated, event_type_s, correlation_id_g, command_id_g,
+    safe_state_applied_b, actor_s, reason_code_s

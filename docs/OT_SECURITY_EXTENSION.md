@@ -1,74 +1,53 @@
-# DepotFlux OT Security Extension
+# DepotFlux OT security extension
 
-This extension connects the existing human-approved optimization workflow to a
-simulated operational-technology boundary. It is intentionally a software-only
-demonstrator: no endpoint opens a socket to a charger, PLC, or field network.
+DepotFlux connects its human-approved optimization workflow to a synthetic
+operational-technology boundary. It now sends real Modbus/TCP frames over an
+isolated software network to a simulated PLC. It has no physical I/O adapter,
+does not publish the PLC or gateway port to the host, and continues to report
+`direct_asset_control=false`.
 
-## First evidence slice
+## Implemented path
 
-An operator may select one interval from an approved, deterministically
-validated schedule and request a control simulation. The API then:
+An operator selects one interval from a successful, deterministically validated
+and immutably approved schedule. The API derives the power value and checks a
+separate control credential, result digest, interval and site envelope. The
+internal gateway checks freshness, expiry, replay and range, then performs an
+FC10 write and FC03 readback through a bounded-timeout client. Both accepted and
+rejected attempts are persisted with correlation IDs and structured events.
 
-1. authenticates the dedicated control-simulation credential;
-2. verifies the immutable operator approval and result hash;
-3. derives the net site-power setpoint from the optimizer output;
-4. checks the interval, numeric value, and depot charger-capacity envelope;
-5. encodes the setpoint as a Modbus/TCP write-single-register frame without
-   transmitting it; and
-6. persists the frame, decision context, actor, and timestamp for audit.
+The legacy `/control-simulations` endpoint remains for compatibility and only
+creates a frame artifact. The implemented TCP path is:
 
-Duplicate requests for the same run and interval return the original record.
-This makes retries safe and provides replay evidence without manufacturing a
-second control action.
-
-## Security boundary
-
-```mermaid
-flowchart LR
-    UI[Operator dashboard] --> API[DepotFlux API]
-    API --> APPROVAL[Immutable approval + result hash]
-    APPROVAL --> POLICY[Control policy gate]
-    POLICY --> FRAME[Modbus/TCP frame encoder]
-    FRAME --> AUDIT[(Persisted simulation audit)]
-    FRAME -. no network transmission .-> PLC[Physical PLC / charger]
+```text
+POST /api/v1/runs/{run_id}/dispatch-simulations
 ```
 
-- `X-Operator-ID` identifies the demonstrator actor but is not authentication.
-- `X-Control-Key` is a separate demonstrator credential checked with a
-  constant-time comparison. Production deployment would replace this with
-  identity-provider authentication, role claims, credential rotation, and a
-  managed secret store.
-- The control-simulation endpoint is disabled when no control key is configured.
-- The Modbus frame is an evidence artifact only. Direct asset control remains
-  explicitly false in the product capability contract.
-- The default holding register stores signed site power in 0.1 kW units. A
-  positive value represents import/charging and a negative value represents
-  export/V2G.
+The separate emergency drill path accepts a reason and `X-Emergency-Key`, then
+writes zero import/export with an explicit safe-state mode. An ordinary zero
+dispatch uses normal mode, preventing misleading evidence.
 
-For local API use, configure a secret value before starting DepotFlux:
+## Local use
 
 ```powershell
-$env:DEMO_CONTROL_API_KEY = "replace-with-a-local-secret"
-agentic-aggregator-api
+./scripts/start_ot_lab.ps1
+./scripts/run_ot_evidence.ps1
 ```
 
-Then use the interactive API documentation to call
-`POST /api/v1/runs/{run_id}/control-simulations` with `X-Control-Key`,
-`X-Operator-ID`, and a one-based `interval_index`. Never commit the key.
+The first command creates local ephemeral secrets under ignored `.demo/`, builds
+the seven-service Compose lab, applies migrations and waits for health. The
+second runs protocol/API tests, an end-to-end optimization/approval/dispatch
+smoke scenario, network-isolation assertions and evidence export.
 
-## Evidence gate
+Design, tests, claim boundaries and response guidance are maintained in:
 
-This slice is complete only when unit and API tests demonstrate:
+- `OT_NETWORK_ARCHITECTURE.md`
+- `OT_ASSURANCE_CASE.md`
+- `OT_PROTOCOL_TEST_PLAN.md`
+- `OT_INCIDENT_RESPONSE.md`
+- `OT_DEMO_SCRIPT.md`
 
-- unauthenticated requests are rejected;
-- unapproved or rejected candidates cannot be converted;
-- result-hash mismatches fail closed;
-- out-of-range intervals and unsafe setpoints are rejected;
-- an accepted frame decodes to the expected setpoint;
-- the same run/interval cannot create a second dispatch record; and
-- the run timeline includes the simulated control action.
-
-Passing this gate supports a claim about designing and testing a secure,
-auditable OT integration prototype. It does not support claims of production
-deployment, field commissioning, IEC 62443 certification, or control of real
-charging equipment.
+Passing the evidence gate supports only a portfolio claim about designing and
+testing a secure, auditable, software-only OT integration prototype. It does not
+support claims of production deployment, field commissioning, compliance,
+certification, an achieved IEC 62443 security level, or control of real charging
+equipment.

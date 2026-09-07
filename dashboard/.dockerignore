@@ -1,0 +1,7 @@
+.next
+.vinext
+.wrangler
+dist
+node_modules
+*.tsbuildinfo
+.env*

@@ -18,6 +18,7 @@ from .contracts import (
 from .database import (
     ApprovalRow,
     ControlSimulationRow,
+    OTDispatchAttemptRow,
     OperationalNoticeRow,
     RunRow,
     utc_now,
@@ -193,6 +194,24 @@ class ApprovalRepository:
                     detail=(
                         "Simulated Modbus site-power command recorded for "
                         f"interval {simulation.interval_index}; no frame transmitted."
+                    ),
+                )
+            )
+        dispatch_attempts = self.session.scalars(
+            select(OTDispatchAttemptRow).where(
+                OTDispatchAttemptRow.run_id == str(run_id)
+            )
+        ).all()
+        for attempt in dispatch_attempts:
+            events.append(
+                AuditEventResponse(
+                    event_type=f"dispatch_{attempt.decision}",
+                    occurred_at=_as_utc(attempt.completed_at),
+                    actor=attempt.requested_by,
+                    detail=(
+                        f"Synthetic {attempt.action} {attempt.decision} for interval "
+                        f"{attempt.interval_index}: {attempt.reason_code}; correlation "
+                        f"{attempt.correlation_id}."
                     ),
                 )
             )

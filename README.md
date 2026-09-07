@@ -1,66 +1,83 @@
 # A Multi-Agentic Aggregator Design for Electric Bus Fleet Charging and Grid Flexibility Management
 
-This repository contains the code, frozen experiment protocols, provenance manifests, and published results for the paper *A Multi-Agentic Aggregator Design for Electric Bus Fleet Charging and Grid Flexibility Management* and its revision (TRC-26-02380).
+An energy optimizer can produce a feasible schedule and still create operational
+risk if an unapproved, modified, stale, replayed or out-of-range result crosses
+into an OT command path. **DepotFlux** demonstrates how to keep that boundary
+human-approved, hash-bound, segmented, fail-closed and auditable.
+
+This repository contains two related bodies of work: the DepotFlux industry
+demonstrator and the frozen research package for *A Multi-Agentic Aggregator
+Design for Electric Bus Fleet Charging and Grid Flexibility Management*
+(TRC-26-02380).
 
 ## Industry demonstrator
 
-**DepotFlux** is being developed as a separate, human-approved electric-fleet
-energy operations surface around the research core. The scope, operating boundary,
-milestones, acceptance gates, and staffing assumptions are defined in
-[`docs/INDUSTRY_DEMONSTRATOR_WORK_PACKAGE.md`](docs/INDUSTRY_DEMONSTRATOR_WORK_PACKAGE.md).
-The active operational-replanning milestone is tracked in
-[`docs/OPERATIONAL_REPLANNING_WORK_PACKAGE.md`](docs/OPERATIONAL_REPLANNING_WORK_PACKAGE.md).
-The demonstrator and frozen dependency baseline require Python 3.12 or newer.
+DepotFlux is a local, software-only electric-fleet operations and OT security
+lab around the research core. It executes registered optimization inputs,
+preserves immutable operator decisions, derives a selected schedule interval,
+passes it through an authenticated supervisory gateway, and exchanges real
+Modbus/TCP frames with a synthetic PLC. Accepted and rejected attempts are
+persisted with policy evidence and correlation IDs.
 
-The initial versioned API surface can be started after installation with:
+It has no physical I/O adapter and must not be aimed at live equipment.
+`GET /api/v1/meta` reports `direct_asset_control=false`. The implementation does
+not claim production readiness, compliance, certification, an achieved security
+level, functional safety, field commissioning or live-SIEM validation.
 
-```powershell
-python -m pip install -e .
-alembic upgrade head
-agentic-aggregator-api
-# In a second terminal:
-agentic-aggregator-worker
-```
+### One-command local lab
 
-It serves interactive API documentation at `http://127.0.0.1:8000/docs` and
-declares explicitly that the demonstrator does not directly control physical
-assets. The zero-setup development database is SQLite under `.demo/`; set
-`DEMO_DATABASE_URL` to a PostgreSQL URL and
-`DEMO_AUTO_CREATE_SCHEMA=false` for a migrated deployment. `X-Operator-ID` is
-an explicitly temporary demonstrator identity header, not authentication. Run
-submission supports `Idempotency-Key`, persisted retrieval/listing, and
-cancellation through the versioned `/api/v1/runs` API. The durable worker claims
-queued rows atomically and currently executes the registered nominal day-ahead
-fixtures in selfish mode with the deterministic rule backend; inputs are listed
-at `/api/v1/inputs`. Unsupported queued configurations terminate with an
-explicit failure code. Terminal results are available from
-`/api/v1/runs/{run_id}/result`.
-
-Start the operator dashboard in a third terminal:
+Requirements: Windows PowerShell, Docker Desktop and Docker Compose.
 
 ```powershell
-cd dashboard
-npm install
-npm run dev
+./scripts/start_ot_lab.ps1
 ```
 
-Open `http://localhost:3000`. The dashboard submits real registered inputs,
-polls durable run state, charts the solved site-power schedule, preserves frozen
-operational notices, queues remaining-horizon replanning, compares the candidate
-with an approved baseline, and records one immutable approve/reject decision tied
-to the result hash. The temporary
-operator identity remains a demonstrator boundary rather than authentication.
+The script generates local ephemeral secrets under ignored `.demo/`, builds the
+seven-service lab, migrates an empty PostgreSQL database and waits for health.
+It prints the dashboard key. Open `http://127.0.0.1:3000`; API documentation is
+at `http://127.0.0.1:8000/docs`, and the read-only security summary is at
+`http://127.0.0.1:9100/metrics/security-summary`.
 
-### Secure OT control simulation
+Generate focused JUnit, Compose smoke and network-isolation evidence:
 
-DepotFlux includes a deliberately non-transmitting OT integration slice. After
-a successful schedule receives an immutable operator approval, a dedicated
-credential-protected API validates one interval against the frozen depot
-capacity, encodes its net site-power setpoint as a Modbus/TCP frame, and
-persists the evidence in the run timeline. It never opens a connection to a
-charger or PLC, so `direct_asset_control` remains false. See
-[`docs/OT_SECURITY_EXTENSION.md`](docs/OT_SECURITY_EXTENSION.md) for the threat
-boundary, safeguards, limitations, and evidence gate.
+```powershell
+./scripts/run_ot_evidence.ps1
+```
+
+### Architecture and evidence
+
+The Compose topology separates enterprise/operator, industrial DMZ,
+supervisory/EMS, control/PLC and monitoring networks. Only the dashboard, API
+and monitor bind host loopback ports. The API, worker and monitor cannot resolve
+the PLC; only the gateway can connect to its allowlisted control address.
+
+The normal API never accepts an arbitrary setpoint. It derives power from the
+approved result interval and enforces credential, successful-state, immutable
+approval, result-digest, deterministic-validation, horizon and site-capacity
+checks. The gateway adds time-window, replay, finite/range, response-validation,
+timeout/retry and heartbeat controls. A separately credentialed emergency drill
+uses an explicit zero-power safe-state mode.
+
+- [Architecture, inventory, zones, conduits and register map](docs/OT_NETWORK_ARCHITECTURE.md)
+- [Threat model, risk register, requirements and standards mappings](docs/OT_ASSURANCE_CASE.md)
+- [Protocol specification and deterministic test matrix](docs/OT_PROTOCOL_TEST_PLAN.md)
+- [Incident response and recovery playbook](docs/OT_INCIDENT_RESPONSE.md)
+- [One-page portfolio case study](docs/PORTFOLIO_CASE_STUDY.md)
+- [Interview demonstration script](docs/OT_DEMO_SCRIPT.md)
+- [OT demonstrator work package and acceptance gates](docs/OT_INDUSTRY_DEMONSTRATOR_WORK_PACKAGE.md)
+- [Public release review gate](docs/PUBLIC_RELEASE_REVIEW.md)
+- [Sigma and KQL examples](detections/README.md)
+- [Original demonstrator work package](docs/INDUSTRY_DEMONSTRATOR_WORK_PACKAGE.md)
+
+The most important limitations are simplified synthetic process behavior,
+shared-secret demonstrator authentication, an in-memory single-instance replay
+cache, unauthenticated Modbus at the protocol layer, Docker rather than
+industrial network controls, mutable database evidence, no safety engineering,
+and no independent security or field testing. See the assurance case for the
+full residual-risk and public-release gate.
+
+Future backlog—not current capability: IEC 61850, a Microsoft Sentinel lab,
+DNP3 or OPC UA, power-flow simulation, and Kubernetes deployment.
 
 ## Reproducing the revision (start here)
 

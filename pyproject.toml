@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agentic-aggregator-workflow"
 version = "0.1.0"
-description = "Standalone Python orchestration for the Agentic Aggregator real-time workflow"
+description = "DepotFlux electric-fleet optimization and synthetic OT security demonstrator"
 requires-python = ">=3.12"
 dependencies = [
   "alembic",
@@ -31,6 +31,10 @@ gurobi = ["gurobipy==13.0.2"]
 agentic-aggregator = "agentic_workflow.cli:main"
 agentic-aggregator-api = "aggregator_demo.cli:main"
 agentic-aggregator-worker = "aggregator_demo.worker:main"
+depotflux-api = "aggregator_demo.cli:main"
+depotflux-worker = "aggregator_demo.worker:main"
+depotflux-ot-gateway = "aggregator_demo.ot_gateway:main"
+depotflux-plc-simulator = "aggregator_demo.plc_simulator:main"
 
 [tool.setuptools]
 packages = ["agentic_workflow", "aggregator_demo"]

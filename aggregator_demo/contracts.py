@@ -166,6 +166,9 @@ class AuditEventResponse(StrictContract):
         "run_completed",
         "decision_recorded",
         "control_simulated",
+        "dispatch_accepted",
+        "dispatch_rejected",
+        "dispatch_failed",
     ]
     occurred_at: datetime
     actor: str
@@ -283,3 +286,78 @@ class ControlSimulationResponse(StrictContract):
 
 class ControlSimulationListResponse(StrictContract):
     items: list[ControlSimulationResponse]
+
+
+class DispatchPolicyCheckResponse(StrictContract):
+    code: str = Field(min_length=1, max_length=64)
+    label: str = Field(min_length=1, max_length=128)
+    passed: bool
+    detail: str = Field(min_length=1, max_length=500)
+
+
+class DispatchCreateRequest(StrictContract):
+    interval_index: int = Field(ge=1)
+    command_id: UUID | None = None
+    issued_at: datetime | None = None
+    expires_at: datetime | None = None
+
+    @field_validator("issued_at", "expires_at")
+    @classmethod
+    def require_timezone(cls, value: datetime | None) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError("command timestamps must include a timezone")
+        return value
+
+
+class EmergencySafeStateRequest(StrictContract):
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class OTDispatchAttemptResponse(StrictContract):
+    id: UUID
+    run_id: UUID | None = None
+    interval_index: int | None = Field(default=None, ge=1)
+    command_id: UUID
+    correlation_id: UUID
+    action: Literal["dispatch", "safe_state"]
+    decision: Literal["accepted", "rejected", "failed"]
+    reason_code: str
+    reason_message: str
+    setpoint_kw: float | None = None
+    result_sha256: str | None = None
+    modbus_frame_hex: str | None = None
+    response_frame_hex: str | None = None
+    policy_checks: list[DispatchPolicyCheckResponse]
+    controller_response: dict | None = None
+    requested_by: str
+    issued_at: datetime
+    completed_at: datetime
+    simulated_only: Literal[True] = True
+
+
+class OTDispatchAttemptListResponse(StrictContract):
+    items: list[OTDispatchAttemptResponse]
+    limit: int
+    offset: int
+
+
+class SecurityEventResponse(StrictContract):
+    id: UUID
+    event_type: str
+    severity: Literal["info", "low", "medium", "high", "critical"]
+    correlation_id: UUID
+    run_id: UUID | None = None
+    actor: str
+    source_zone: str
+    destination: str
+    outcome: str
+    reason_code: str
+    details: dict
+    occurred_at: datetime
+    simulated_only: Literal[True] = True
+
+
+class SecurityEventListResponse(StrictContract):
+    items: list[SecurityEventResponse]
+    limit: int
+    offset: int

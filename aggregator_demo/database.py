@@ -213,6 +213,63 @@ class ControlSimulationRow(Base):
     )
 
 
+class OTDispatchAttemptRow(Base):
+    __tablename__ = "ot_dispatch_attempts"
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('dispatch','safe_state')",
+            name="ck_ot_dispatch_attempts_action",
+        ),
+        CheckConstraint(
+            "decision IN ('accepted','rejected','failed')",
+            name="ck_ot_dispatch_attempts_decision",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    run_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("optimization_runs.id"), nullable=True, index=True
+    )
+    interval_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    command_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    correlation_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    decision: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    reason_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    reason_message: Mapped[str] = mapped_column(String(1000), nullable=False)
+    setpoint_kw: Mapped[float | None] = mapped_column(Float, nullable=True)
+    result_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    modbus_frame_hex: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    response_frame_hex: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    policy_checks: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
+    controller_response: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    requested_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
+class SecurityEventRow(Base):
+    __tablename__ = "security_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(96), nullable=False, index=True)
+    severity: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    correlation_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    run_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    actor: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_zone: Mapped[str] = mapped_column(String(64), nullable=False)
+    destination: Mapped[str] = mapped_column(String(128), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    details: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
 def database_url_from_environment() -> str:
     return os.environ.get("DEMO_DATABASE_URL", DEFAULT_DATABASE_URL)
 
@@ -251,3 +308,5 @@ def ping_database(engine: Engine) -> None:
         connection.execute(text("SELECT 1"))
         connection.execute(text("SELECT 1 FROM optimization_runs LIMIT 1"))
         connection.execute(text("SELECT 1 FROM control_simulations LIMIT 1"))
+        connection.execute(text("SELECT 1 FROM ot_dispatch_attempts LIMIT 1"))
+        connection.execute(text("SELECT 1 FROM security_events LIMIT 1"))
