@@ -21,6 +21,27 @@ def load_jobs():
         return {}
 
 
+def _solver_passes_readiness_check(solver):
+    """Return whether a configured solver can complete a trivial optimization.
+
+    ``SolverFactory.available`` proves that a binding or executable exists, but
+    not that a licence is valid for the current user.  The demonstrator must not
+    advertise a solver as ready until it has performed an actual solve.
+    """
+    smoke_model = pyo.ConcreteModel()
+    smoke_model.x = pyo.Var(bounds=(0, 1))
+    smoke_model.objective = pyo.Objective(expr=smoke_model.x, sense=pyo.minimize)
+    try:
+        result = solver.solve(smoke_model, tee=False)
+        termination = result.solver.termination_condition
+        return termination in {
+            pyo.TerminationCondition.optimal,
+            pyo.TerminationCondition.feasible,
+        }
+    except Exception:
+        return False
+
+
 def save_job(job_id, data):
     with _jobs_lock:
         jobs = load_jobs()
@@ -57,6 +78,9 @@ def configure_milp_solver(time_limit=300, mip_gap=0.04, solver_candidates=None):
             solver.options['ratio'] = mip_gap
         elif solver_name == 'glpk':
             solver.options['tmlim'] = time_limit
+
+        if not _solver_passes_readiness_check(solver):
+            continue
 
         return solver, solver_name
 

@@ -2,6 +2,23 @@
 
 This repository contains the code, frozen experiment protocols, provenance manifests, and published results for the paper *A Multi-Agentic Aggregator Design for Electric Bus Fleet Charging and Grid Flexibility Management* and its revision (TRC-26-02380).
 
+## Industry demonstrator
+
+Productization work is being developed as a separate, human-approved decision-
+support surface around the research core. The scope, operating boundary,
+milestones, acceptance gates, and staffing assumptions are defined in
+[`docs/INDUSTRY_DEMONSTRATOR_WORK_PACKAGE.md`](docs/INDUSTRY_DEMONSTRATOR_WORK_PACKAGE.md).
+
+The initial versioned API surface can be started after installation with:
+
+```powershell
+agentic-aggregator-api
+```
+
+It serves interactive API documentation at `http://127.0.0.1:8000/docs` and
+declares explicitly that the demonstrator does not directly control physical
+assets.
+
 ## Reproducing the revision (start here)
 
 The revision experiments run natively in Python through the `agentic_workflow` package; no orchestration server is involved. The n8n exports under `workflows/` are retained as an archive of the original submission's orchestration and are not part of the reproduction path.

@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Standalone Python orchestration for the Agentic Aggregator real-time workflow"
 requires-python = ">=3.10"
 dependencies = [
+  "fastapi",
   "flask",
   "highspy",
   "httpx",
@@ -17,6 +18,7 @@ dependencies = [
   "pandas",
   "pydantic>=2",
   "pyomo",
+  "uvicorn",
 ]
 
 [project.optional-dependencies]
@@ -24,9 +26,10 @@ gurobi = ["gurobipy==13.0.2"]
 
 [project.scripts]
 agentic-aggregator = "agentic_workflow.cli:main"
+agentic-aggregator-api = "aggregator_demo.cli:main"
 
 [tool.setuptools]
-packages = ["agentic_workflow"]
+packages = ["agentic_workflow", "aggregator_demo"]
 py-modules = ["app_rt"]
 
 [tool.setuptools.package-data]
