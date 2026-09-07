@@ -1,0 +1,41 @@
+{
+  "inputs": [
+    {
+      "charger_count": 8,
+      "depot": "depot-a",
+      "filename": "depot_a_8_v1.json",
+      "fleet_size": 8,
+      "horizon_intervals": 48,
+      "interval_minutes": 30,
+      "provenance": "Deterministic demonstrator fixture derived from the canonical eight-bus research case; larger fleets use declared block replication.",
+      "reference": "demo/depot-a-8-v1",
+      "sha256": "14b18bb5723f2a3c24c3ee946fc06fdbf0eaea1b27a1d605d1b0663e42d17d26",
+      "trip_count": 8
+    },
+    {
+      "charger_count": 16,
+      "depot": "depot-a",
+      "filename": "depot_a_16_v1.json",
+      "fleet_size": 16,
+      "horizon_intervals": 48,
+      "interval_minutes": 30,
+      "provenance": "Deterministic demonstrator fixture derived from the canonical eight-bus research case; larger fleets use declared block replication.",
+      "reference": "demo/depot-a-16-v1",
+      "sha256": "107ce9f31f3b6dc30ec03a4416b2a09017197b2f106c6ca8696e2f212d1c2c52",
+      "trip_count": 16
+    },
+    {
+      "charger_count": 32,
+      "depot": "depot-a",
+      "filename": "depot_a_32_v1.json",
+      "fleet_size": 32,
+      "horizon_intervals": 48,
+      "interval_minutes": 30,
+      "provenance": "Deterministic demonstrator fixture derived from the canonical eight-bus research case; larger fleets use declared block replication.",
+      "reference": "demo/depot-a-32-v1",
+      "sha256": "898391d88fb1bd06a8049ddd4275782d2f731c8bf0ae48f175a4a8b823c3e716",
+      "trip_count": 32
+    }
+  ],
+  "manifest_version": "v1"
+}

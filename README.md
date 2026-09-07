@@ -8,6 +8,7 @@ Productization work is being developed as a separate, human-approved decision-
 support surface around the research core. The scope, operating boundary,
 milestones, acceptance gates, and staffing assumptions are defined in
 [`docs/INDUSTRY_DEMONSTRATOR_WORK_PACKAGE.md`](docs/INDUSTRY_DEMONSTRATOR_WORK_PACKAGE.md).
+The demonstrator and frozen dependency baseline require Python 3.12 or newer.
 
 The initial versioned API surface can be started after installation with:
 
@@ -15,6 +16,8 @@ The initial versioned API surface can be started after installation with:
 python -m pip install -e .
 alembic upgrade head
 agentic-aggregator-api
+# In a second terminal:
+agentic-aggregator-worker
 ```
 
 It serves interactive API documentation at `http://127.0.0.1:8000/docs` and
@@ -24,7 +27,12 @@ assets. The zero-setup development database is SQLite under `.demo/`; set
 `DEMO_AUTO_CREATE_SCHEMA=false` for a migrated deployment. `X-Operator-ID` is
 an explicitly temporary demonstrator identity header, not authentication. Run
 submission supports `Idempotency-Key`, persisted retrieval/listing, and
-cancellation through the versioned `/api/v1/runs` API.
+cancellation through the versioned `/api/v1/runs` API. The durable worker claims
+queued rows atomically and currently executes the registered nominal day-ahead
+fixtures in selfish mode with the deterministic rule backend; inputs are listed
+at `/api/v1/inputs`. Unsupported queued configurations terminate with an
+explicit failure code. Terminal results are available from
+`/api/v1/runs/{run_id}/result`.
 
 ## Reproducing the revision (start here)
 
@@ -33,7 +41,7 @@ The revision experiments run natively in Python through the `agentic_workflow` p
 ```powershell
 git config core.autocrlf false   # frozen hashes are LF-based
 python -m pip install -r requirements-dev-lock.txt
-python -m pytest -q                              # expect 182 passed
+python -m pytest -q                              # expect all tests to pass
 python scripts/validate_revision_package.py      # expect no failed checks
 ```
 

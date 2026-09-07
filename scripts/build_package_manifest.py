@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import subprocess
 from pathlib import Path
 
 
@@ -42,6 +43,21 @@ def included(path: Path) -> bool:
     )
 
 
+def tracked_paths() -> list[Path]:
+    """Return files in Git's index, including additions staged for commit."""
+    result = subprocess.run(
+        ["git", "ls-files", "-z"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    )
+    return [
+        ROOT / entry.decode("utf-8")
+        for entry in result.stdout.split(b"\0")
+        if entry
+    ]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -52,7 +68,7 @@ def main() -> None:
     args = parser.parse_args()
 
     rows = ["SHA256  BYTES  PATH"]
-    for path in sorted((path for path in ROOT.rglob("*") if included(path))):
+    for path in sorted(path for path in tracked_paths() if included(path)):
         relative = f"{args.package_name}/{path.relative_to(ROOT).as_posix()}"
         rows.append(f"{digest(path)}  {path.stat().st_size}  {relative}")
     OUTPUT.write_text("\n".join(rows) + "\n", encoding="utf-8", newline="\n")

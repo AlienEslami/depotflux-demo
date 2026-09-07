@@ -1,0 +1,1442 @@
+{
+  "buses": [
+    {
+      "bus_id": 1,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 2,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 3,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 4,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 5,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 6,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 7,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 8,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 9,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 10,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 11,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 12,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 13,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 14,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 15,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 16,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 17,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 18,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 19,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 20,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 21,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 22,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 23,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 24,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 25,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 26,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 27,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 28,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 29,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 30,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 31,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    },
+    {
+      "bus_id": 32,
+      "bus_kwh": 365,
+      "initial_soc": 20
+    }
+  ],
+  "chargers": [
+    {
+      "charger_id": 1,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 2,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 3,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 4,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 5,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 6,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 7,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 8,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 9,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 10,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 11,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 12,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 13,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 14,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 15,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 16,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 17,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 18,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 19,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 20,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 21,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 22,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 23,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 24,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 25,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 26,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 27,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 28,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 29,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 30,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 31,
+      "charger_kw": 200
+    },
+    {
+      "charger_id": 32,
+      "charger_kw": 200
+    }
+  ],
+  "grid_prices": [
+    {
+      "spot_market": 0.09619637602179835,
+      "timestep": 1
+    },
+    {
+      "spot_market": 0.09619637602179835,
+      "timestep": 2
+    },
+    {
+      "spot_market": 0.08876599455040872,
+      "timestep": 3
+    },
+    {
+      "spot_market": 0.08876599455040872,
+      "timestep": 4
+    },
+    {
+      "spot_market": 0.08449662125340598,
+      "timestep": 5
+    },
+    {
+      "spot_market": 0.08449662125340598,
+      "timestep": 6
+    },
+    {
+      "spot_market": 0.08228021798365123,
+      "timestep": 7
+    },
+    {
+      "spot_market": 0.08228021798365123,
+      "timestep": 8
+    },
+    {
+      "spot_market": 0.08080803814713895,
+      "timestep": 9
+    },
+    {
+      "spot_market": 0.08080803814713895,
+      "timestep": 10
+    },
+    {
+      "spot_market": 0.08383324250681198,
+      "timestep": 11
+    },
+    {
+      "spot_market": 0.08383324250681198,
+      "timestep": 12
+    },
+    {
+      "spot_market": 0.09252626702997276,
+      "timestep": 13
+    },
+    {
+      "spot_market": 0.09252626702997276,
+      "timestep": 14
+    },
+    {
+      "spot_market": 0.102791280653951,
+      "timestep": 15
+    },
+    {
+      "spot_market": 0.102791280653951,
+      "timestep": 16
+    },
+    {
+      "spot_market": 0.105717166212534,
+      "timestep": 17
+    },
+    {
+      "spot_market": 0.105717166212534,
+      "timestep": 18
+    },
+    {
+      "spot_market": 0.09572980926430517,
+      "timestep": 19
+    },
+    {
+      "spot_market": 0.09572980926430517,
+      "timestep": 20
+    },
+    {
+      "spot_market": 0.08299574931880109,
+      "timestep": 21
+    },
+    {
+      "spot_market": 0.08299574931880109,
+      "timestep": 22
+    },
+    {
+      "spot_market": 0.077228310626703,
+      "timestep": 23
+    },
+    {
+      "spot_market": 0.077228310626703,
+      "timestep": 24
+    },
+    {
+      "spot_market": 0.07437686648501363,
+      "timestep": 25
+    },
+    {
+      "spot_market": 0.07437686648501363,
+      "timestep": 26
+    },
+    {
+      "spot_market": 0.07192795640326977,
+      "timestep": 27
+    },
+    {
+      "spot_market": 0.07192795640326977,
+      "timestep": 28
+    },
+    {
+      "spot_market": 0.06861103542234331,
+      "timestep": 29
+    },
+    {
+      "spot_market": 0.06861103542234331,
+      "timestep": 30
+    },
+    {
+      "spot_market": 0.06739891008174388,
+      "timestep": 31
+    },
+    {
+      "spot_market": 0.06739891008174388,
+      "timestep": 32
+    },
+    {
+      "spot_market": 0.07101792915531335,
+      "timestep": 33
+    },
+    {
+      "spot_market": 0.07101792915531335,
+      "timestep": 34
+    },
+    {
+      "spot_market": 0.08115062670299727,
+      "timestep": 35
+    },
+    {
+      "spot_market": 0.08115062670299727,
+      "timestep": 36
+    },
+    {
+      "spot_market": 0.09418119891008175,
+      "timestep": 37
+    },
+    {
+      "spot_market": 0.09418119891008175,
+      "timestep": 38
+    },
+    {
+      "spot_market": 0.1104535694822888,
+      "timestep": 39
+    },
+    {
+      "spot_market": 0.1104535694822888,
+      "timestep": 40
+    },
+    {
+      "spot_market": 0.1221265940054496,
+      "timestep": 41
+    },
+    {
+      "spot_market": 0.1221265940054496,
+      "timestep": 42
+    },
+    {
+      "spot_market": 0.120581825613079,
+      "timestep": 43
+    },
+    {
+      "spot_market": 0.120581825613079,
+      "timestep": 44
+    },
+    {
+      "spot_market": 0.1114515803814714,
+      "timestep": 45
+    },
+    {
+      "spot_market": 0.1114515803814714,
+      "timestep": 46
+    },
+    {
+      "spot_market": 0.1015224043715847,
+      "timestep": 47
+    },
+    {
+      "spot_market": 0.1015224043715847,
+      "timestep": 48
+    }
+  ],
+  "prices": [
+    {
+      "spot_market": 0.09619637602179835,
+      "timestep": 1
+    },
+    {
+      "spot_market": 0.09619637602179835,
+      "timestep": 2
+    },
+    {
+      "spot_market": 0.08876599455040872,
+      "timestep": 3
+    },
+    {
+      "spot_market": 0.08876599455040872,
+      "timestep": 4
+    },
+    {
+      "spot_market": 0.08449662125340598,
+      "timestep": 5
+    },
+    {
+      "spot_market": 0.08449662125340598,
+      "timestep": 6
+    },
+    {
+      "spot_market": 0.08228021798365123,
+      "timestep": 7
+    },
+    {
+      "spot_market": 0.08228021798365123,
+      "timestep": 8
+    },
+    {
+      "spot_market": 0.08080803814713895,
+      "timestep": 9
+    },
+    {
+      "spot_market": 0.08080803814713895,
+      "timestep": 10
+    },
+    {
+      "spot_market": 0.08383324250681198,
+      "timestep": 11
+    },
+    {
+      "spot_market": 0.08383324250681198,
+      "timestep": 12
+    },
+    {
+      "spot_market": 0.09252626702997276,
+      "timestep": 13
+    },
+    {
+      "spot_market": 0.09252626702997276,
+      "timestep": 14
+    },
+    {
+      "spot_market": 0.102791280653951,
+      "timestep": 15
+    },
+    {
+      "spot_market": 0.102791280653951,
+      "timestep": 16
+    },
+    {
+      "spot_market": 0.105717166212534,
+      "timestep": 17
+    },
+    {
+      "spot_market": 0.105717166212534,
+      "timestep": 18
+    },
+    {
+      "spot_market": 0.09572980926430517,
+      "timestep": 19
+    },
+    {
+      "spot_market": 0.09572980926430517,
+      "timestep": 20
+    },
+    {
+      "spot_market": 0.08299574931880109,
+      "timestep": 21
+    },
+    {
+      "spot_market": 0.08299574931880109,
+      "timestep": 22
+    },
+    {
+      "spot_market": 0.077228310626703,
+      "timestep": 23
+    },
+    {
+      "spot_market": 0.077228310626703,
+      "timestep": 24
+    },
+    {
+      "spot_market": 0.07437686648501363,
+      "timestep": 25
+    },
+    {
+      "spot_market": 0.07437686648501363,
+      "timestep": 26
+    },
+    {
+      "spot_market": 0.07192795640326977,
+      "timestep": 27
+    },
+    {
+      "spot_market": 0.07192795640326977,
+      "timestep": 28
+    },
+    {
+      "spot_market": 0.06861103542234331,
+      "timestep": 29
+    },
+    {
+      "spot_market": 0.06861103542234331,
+      "timestep": 30
+    },
+    {
+      "spot_market": 0.06739891008174388,
+      "timestep": 31
+    },
+    {
+      "spot_market": 0.06739891008174388,
+      "timestep": 32
+    },
+    {
+      "spot_market": 0.07101792915531335,
+      "timestep": 33
+    },
+    {
+      "spot_market": 0.07101792915531335,
+      "timestep": 34
+    },
+    {
+      "spot_market": 0.08115062670299727,
+      "timestep": 35
+    },
+    {
+      "spot_market": 0.08115062670299727,
+      "timestep": 36
+    },
+    {
+      "spot_market": 0.09418119891008175,
+      "timestep": 37
+    },
+    {
+      "spot_market": 0.09418119891008175,
+      "timestep": 38
+    },
+    {
+      "spot_market": 0.1104535694822888,
+      "timestep": 39
+    },
+    {
+      "spot_market": 0.1104535694822888,
+      "timestep": 40
+    },
+    {
+      "spot_market": 0.1221265940054496,
+      "timestep": 41
+    },
+    {
+      "spot_market": 0.1221265940054496,
+      "timestep": 42
+    },
+    {
+      "spot_market": 0.120581825613079,
+      "timestep": 43
+    },
+    {
+      "spot_market": 0.120581825613079,
+      "timestep": 44
+    },
+    {
+      "spot_market": 0.1114515803814714,
+      "timestep": 45
+    },
+    {
+      "spot_market": 0.1114515803814714,
+      "timestep": 46
+    },
+    {
+      "spot_market": 0.1015224043715847,
+      "timestep": 47
+    },
+    {
+      "spot_market": 0.1015224043715847,
+      "timestep": 48
+    }
+  ],
+  "realtime_state": [
+    {
+      "bus_id": 1,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 2,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 3,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 4,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 5,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 6,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 7,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 8,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 9,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 10,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 11,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 12,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 13,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 14,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 15,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 16,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 17,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 18,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 19,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 20,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 21,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 22,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 23,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 24,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 25,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 26,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 27,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 28,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 29,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 30,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 31,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    },
+    {
+      "bus_id": 32,
+      "current_energy_kwh": null,
+      "current_soc": 20,
+      "current_timestep": 15,
+      "delay_minutes": 0,
+      "operation_status": "idle"
+    }
+  ],
+  "tariffs": [
+    {
+      "buy_price": 0.100044,
+      "sell_price": 0.075033,
+      "timestep": 1
+    },
+    {
+      "buy_price": 0.100044,
+      "sell_price": 0.075033,
+      "timestep": 2
+    },
+    {
+      "buy_price": 0.092317,
+      "sell_price": 0.069237,
+      "timestep": 3
+    },
+    {
+      "buy_price": 0.092317,
+      "sell_price": 0.069237,
+      "timestep": 4
+    },
+    {
+      "buy_price": 0.087876,
+      "sell_price": 0.065907,
+      "timestep": 5
+    },
+    {
+      "buy_price": 0.087876,
+      "sell_price": 0.065907,
+      "timestep": 6
+    },
+    {
+      "buy_price": 0.085571,
+      "sell_price": 0.064179,
+      "timestep": 7
+    },
+    {
+      "buy_price": 0.085571,
+      "sell_price": 0.064179,
+      "timestep": 8
+    },
+    {
+      "buy_price": 0.08404,
+      "sell_price": 0.06303,
+      "timestep": 9
+    },
+    {
+      "buy_price": 0.08404,
+      "sell_price": 0.06303,
+      "timestep": 10
+    },
+    {
+      "buy_price": 0.087187,
+      "sell_price": 0.06539,
+      "timestep": 11
+    },
+    {
+      "buy_price": 0.087187,
+      "sell_price": 0.06539,
+      "timestep": 12
+    },
+    {
+      "buy_price": 0.096227,
+      "sell_price": 0.07217,
+      "timestep": 13
+    },
+    {
+      "buy_price": 0.096227,
+      "sell_price": 0.07217,
+      "timestep": 14
+    },
+    {
+      "buy_price": 0.106903,
+      "sell_price": 0.080177,
+      "timestep": 15
+    },
+    {
+      "buy_price": 0.106903,
+      "sell_price": 0.080177,
+      "timestep": 16
+    },
+    {
+      "buy_price": 0.109946,
+      "sell_price": 0.082459,
+      "timestep": 17
+    },
+    {
+      "buy_price": 0.109946,
+      "sell_price": 0.082459,
+      "timestep": 18
+    },
+    {
+      "buy_price": 0.099559,
+      "sell_price": 0.074669,
+      "timestep": 19
+    },
+    {
+      "buy_price": 0.099559,
+      "sell_price": 0.074669,
+      "timestep": 20
+    },
+    {
+      "buy_price": 0.086316,
+      "sell_price": 0.064737,
+      "timestep": 21
+    },
+    {
+      "buy_price": 0.086316,
+      "sell_price": 0.064737,
+      "timestep": 22
+    },
+    {
+      "buy_price": 0.080317,
+      "sell_price": 0.060238,
+      "timestep": 23
+    },
+    {
+      "buy_price": 0.080317,
+      "sell_price": 0.060238,
+      "timestep": 24
+    },
+    {
+      "buy_price": 0.077352,
+      "sell_price": 0.058014,
+      "timestep": 25
+    },
+    {
+      "buy_price": 0.077352,
+      "sell_price": 0.058014,
+      "timestep": 26
+    },
+    {
+      "buy_price": 0.074805,
+      "sell_price": 0.056104,
+      "timestep": 27
+    },
+    {
+      "buy_price": 0.074805,
+      "sell_price": 0.056104,
+      "timestep": 28
+    },
+    {
+      "buy_price": 0.071355,
+      "sell_price": 0.053517,
+      "timestep": 29
+    },
+    {
+      "buy_price": 0.071355,
+      "sell_price": 0.053517,
+      "timestep": 30
+    },
+    {
+      "buy_price": 0.070095,
+      "sell_price": 0.052571,
+      "timestep": 31
+    },
+    {
+      "buy_price": 0.070095,
+      "sell_price": 0.052571,
+      "timestep": 32
+    },
+    {
+      "buy_price": 0.073859,
+      "sell_price": 0.055394,
+      "timestep": 33
+    },
+    {
+      "buy_price": 0.073859,
+      "sell_price": 0.055394,
+      "timestep": 34
+    },
+    {
+      "buy_price": 0.084397,
+      "sell_price": 0.063297,
+      "timestep": 35
+    },
+    {
+      "buy_price": 0.084397,
+      "sell_price": 0.063297,
+      "timestep": 36
+    },
+    {
+      "buy_price": 0.097948,
+      "sell_price": 0.073461,
+      "timestep": 37
+    },
+    {
+      "buy_price": 0.097948,
+      "sell_price": 0.073461,
+      "timestep": 38
+    },
+    {
+      "buy_price": 0.114872,
+      "sell_price": 0.086154,
+      "timestep": 39
+    },
+    {
+      "buy_price": 0.114872,
+      "sell_price": 0.086154,
+      "timestep": 40
+    },
+    {
+      "buy_price": 0.127012,
+      "sell_price": 0.095259,
+      "timestep": 41
+    },
+    {
+      "buy_price": 0.127012,
+      "sell_price": 0.095259,
+      "timestep": 42
+    },
+    {
+      "buy_price": 0.125405,
+      "sell_price": 0.094054,
+      "timestep": 43
+    },
+    {
+      "buy_price": 0.125405,
+      "sell_price": 0.094054,
+      "timestep": 44
+    },
+    {
+      "buy_price": 0.11591,
+      "sell_price": 0.086932,
+      "timestep": 45
+    },
+    {
+      "buy_price": 0.11591,
+      "sell_price": 0.086932,
+      "timestep": 46
+    },
+    {
+      "buy_price": 0.105583,
+      "sell_price": 0.079187,
+      "timestep": 47
+    },
+    {
+      "buy_price": 0.105583,
+      "sell_price": 0.079187,
+      "timestep": 48
+    }
+  ],
+  "timestep_minutes": 30,
+  "trip_time": [
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 1,
+      "energy_kwhkm": 0.923,
+      "time_begin": "07:00",
+      "time_end": "22:30",
+      "trip_id": 1
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 2,
+      "energy_kwhkm": 0.859,
+      "time_begin": "06:00",
+      "time_end": "23:00",
+      "trip_id": 2
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 3,
+      "energy_kwhkm": 0.886,
+      "time_begin": "05:30",
+      "time_end": "18:30",
+      "trip_id": 3
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 4,
+      "energy_kwhkm": 0.88,
+      "time_begin": "06:00",
+      "time_end": "20:30",
+      "trip_id": 4
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 5,
+      "energy_kwhkm": 0.861,
+      "time_begin": "06:30",
+      "time_end": "22:30",
+      "trip_id": 5
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 6,
+      "energy_kwhkm": 0.891,
+      "time_begin": "06:30",
+      "time_end": "21:30",
+      "trip_id": 6
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 7,
+      "energy_kwhkm": 0.923,
+      "time_begin": "07:00",
+      "time_end": "21:00",
+      "trip_id": 7
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 8,
+      "energy_kwhkm": 0.903,
+      "time_begin": "06:30",
+      "time_end": "21:00",
+      "trip_id": 8
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 9,
+      "energy_kwhkm": 0.923,
+      "time_begin": "07:00",
+      "time_end": "22:30",
+      "trip_id": 9
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 10,
+      "energy_kwhkm": 0.859,
+      "time_begin": "06:00",
+      "time_end": "23:00",
+      "trip_id": 10
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 11,
+      "energy_kwhkm": 0.886,
+      "time_begin": "05:30",
+      "time_end": "18:30",
+      "trip_id": 11
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 12,
+      "energy_kwhkm": 0.88,
+      "time_begin": "06:00",
+      "time_end": "20:30",
+      "trip_id": 12
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 13,
+      "energy_kwhkm": 0.861,
+      "time_begin": "06:30",
+      "time_end": "22:30",
+      "trip_id": 13
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 14,
+      "energy_kwhkm": 0.891,
+      "time_begin": "06:30",
+      "time_end": "21:30",
+      "trip_id": 14
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 15,
+      "energy_kwhkm": 0.923,
+      "time_begin": "07:00",
+      "time_end": "21:00",
+      "trip_id": 15
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 16,
+      "energy_kwhkm": 0.903,
+      "time_begin": "06:30",
+      "time_end": "21:00",
+      "trip_id": 16
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 17,
+      "energy_kwhkm": 0.923,
+      "time_begin": "07:00",
+      "time_end": "22:30",
+      "trip_id": 17
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 18,
+      "energy_kwhkm": 0.859,
+      "time_begin": "06:00",
+      "time_end": "23:00",
+      "trip_id": 18
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 19,
+      "energy_kwhkm": 0.886,
+      "time_begin": "05:30",
+      "time_end": "18:30",
+      "trip_id": 19
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 20,
+      "energy_kwhkm": 0.88,
+      "time_begin": "06:00",
+      "time_end": "20:30",
+      "trip_id": 20
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 21,
+      "energy_kwhkm": 0.861,
+      "time_begin": "06:30",
+      "time_end": "22:30",
+      "trip_id": 21
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 22,
+      "energy_kwhkm": 0.891,
+      "time_begin": "06:30",
+      "time_end": "21:30",
+      "trip_id": 22
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 23,
+      "energy_kwhkm": 0.923,
+      "time_begin": "07:00",
+      "time_end": "21:00",
+      "trip_id": 23
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 24,
+      "energy_kwhkm": 0.903,
+      "time_begin": "06:30",
+      "time_end": "21:00",
+      "trip_id": 24
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 25,
+      "energy_kwhkm": 0.923,
+      "time_begin": "07:00",
+      "time_end": "22:30",
+      "trip_id": 25
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 26,
+      "energy_kwhkm": 0.859,
+      "time_begin": "06:00",
+      "time_end": "23:00",
+      "trip_id": 26
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 27,
+      "energy_kwhkm": 0.886,
+      "time_begin": "05:30",
+      "time_end": "18:30",
+      "trip_id": 27
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 28,
+      "energy_kwhkm": 0.88,
+      "time_begin": "06:00",
+      "time_end": "20:30",
+      "trip_id": 28
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 29,
+      "energy_kwhkm": 0.861,
+      "time_begin": "06:30",
+      "time_end": "22:30",
+      "trip_id": 29
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 30,
+      "energy_kwhkm": 0.891,
+      "time_begin": "06:30",
+      "time_end": "21:30",
+      "trip_id": 30
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 31,
+      "energy_kwhkm": 0.923,
+      "time_begin": "07:00",
+      "time_end": "21:00",
+      "trip_id": 31
+    },
+    {
+      "average_velocity_kmh": 12,
+      "bus_id": 32,
+      "energy_kwhkm": 0.903,
+      "time_begin": "06:30",
+      "time_end": "21:00",
+      "trip_id": 32
+    }
+  ],
+  "v2g_enabled": "on"
+}

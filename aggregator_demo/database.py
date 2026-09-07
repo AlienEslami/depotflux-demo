@@ -76,6 +76,10 @@ class RunRow(Base):
     )
     failure_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     failure_message: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    worker_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    solver_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    result_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    result_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
 
 def database_url_from_environment() -> str:

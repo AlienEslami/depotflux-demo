@@ -164,8 +164,8 @@ flowchart LR
     O[Operator browser] --> UI[React/TypeScript UI]
     UI --> API[FastAPI application API]
     API --> DB[(PostgreSQL)]
-    API --> Q[Redis job queue]
-    Q --> W[Optimization worker]
+    API --> DBQ[(PostgreSQL run queue)]
+    DBQ --> W[Optimization worker]
     W --> CORE[Existing workflow and domain core]
     CORE --> MILP[Pyomo + configured solver]
     CORE --> AGENT[Rule engine or optional LLM]
@@ -181,19 +181,21 @@ flowchart LR
 - Domain and optimization: the existing `agentic_workflow` package, Pyomo, and
   the configured Gurobi or HiGHS solver.
 - Durable state: PostgreSQL.
-- Background work: Redis-backed RQ workers.
+- Background work: a PostgreSQL-backed atomic run claim for the demonstrator;
+  a dedicated queue service remains an upgrade path for higher throughput.
 - User interface: React, TypeScript, and a small charting library selected
   during inception.
-- Local deployment: Docker Compose with API, worker, UI, PostgreSQL, and Redis.
+- Local deployment: Docker Compose with API, worker, UI, and PostgreSQL.
 - Hosted demonstration: container platform with managed PostgreSQL, private
   secrets, TLS, and access control.
 - Testing: pytest for Python, API contract tests, and Playwright for the browser
   demonstration path.
 
-FastAPI and RQ are demonstrator decisions rather than permanent production
-commitments. They reduce application plumbing while providing typed contracts
-and durable job execution. A later production architecture review may replace
-the queue or deployment platform without changing domain contracts.
+FastAPI and the database-backed worker are demonstrator decisions rather than
+permanent production commitments. They reduce application plumbing while
+providing typed contracts and durable job execution. A later production
+architecture review may introduce a dedicated queue or replace the deployment
+platform without changing domain contracts.
 
 ### 6.2 Core entities
 
@@ -274,7 +276,8 @@ Tasks:
 
 - Implement the FastAPI application and database migrations.
 - Persist input versions, runs, attempts, candidates, validations, and approvals.
-- Add the Redis/RQ worker and idempotent job submission.
+- Add the database-backed worker with atomic claims and idempotent job
+  submission.
 - Support progress, timeout, cancellation request, retry policy, and recovery
   after an interrupted worker.
 - Store large result artifacts outside ordinary API rows and retain hashes in

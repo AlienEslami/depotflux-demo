@@ -5,11 +5,11 @@ import json
 from datetime import timezone
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from .contracts import RunCreateRequest, RunResponse, RunStatus
+from .contracts import RunCreateRequest, RunResponse, RunResultResponse, RunStatus
 from .database import RunRow, utc_now
 
 
@@ -143,6 +143,99 @@ class RunRepository:
             .offset(offset)
         ).all()
         return [run_response(row) for row in rows]
+
+    def result(self, run_id: UUID) -> RunResultResponse:
+        row = self._get_row(run_id)
+        status = RunStatus(row.status)
+        if not status.is_terminal:
+            raise RunConflictError(f"run {run_id} has not reached a terminal state")
+        return RunResultResponse(
+            run_id=UUID(row.id),
+            status=status,
+            solver_name=row.solver_name,
+            result_sha256=row.result_sha256,
+            result=row.result_payload,
+            failure_code=row.failure_code,
+            failure_message=row.failure_message,
+        )
+
+    def claim_next(self, *, worker_id: str) -> RunResponse | None:
+        """Atomically claim the oldest queued run for one durable worker."""
+        for _ in range(10):
+            run_id = self.session.scalar(
+                select(RunRow.id)
+                .where(RunRow.status == RunStatus.QUEUED.value)
+                .order_by(RunRow.created_at.asc(), RunRow.id.asc())
+                .limit(1)
+            )
+            if run_id is None:
+                return None
+            now = utc_now()
+            claimed = self.session.execute(
+                update(RunRow)
+                .where(
+                    RunRow.id == run_id,
+                    RunRow.status == RunStatus.QUEUED.value,
+                )
+                .values(
+                    status=RunStatus.RUNNING.value,
+                    worker_id=worker_id,
+                    started_at=now,
+                    updated_at=now,
+                )
+            )
+            self.session.commit()
+            if claimed.rowcount == 1:
+                return run_response(self._get_row(UUID(run_id)))
+            self.session.expire_all()
+        return None
+
+    def complete(self, run_id: UUID, result: dict) -> RunResultResponse:
+        canonical_result = json.dumps(
+            result,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+        row = self._get_row(run_id)
+        current = RunStatus(row.status)
+        if current not in {RunStatus.RUNNING, RunStatus.CANCEL_REQUESTED}:
+            raise RunConflictError(
+                f"run {run_id} cannot complete from {current.value}"
+            )
+        row.result_payload = result
+        row.result_sha256 = hashlib.sha256(canonical_result).hexdigest()
+        row.solver_name = result.get("solver_name")
+        row.status = RunStatus.SUCCEEDED.value
+        row.updated_at = utc_now()
+        row.completed_at = row.updated_at
+        row.failure_code = None
+        row.failure_message = None
+        self.session.commit()
+        return self.result(run_id)
+
+    def fail(
+        self,
+        run_id: UUID,
+        *,
+        status: RunStatus,
+        failure_code: str,
+        failure_message: str,
+    ) -> RunResultResponse:
+        if status not in {
+            RunStatus.FAILED,
+            RunStatus.INFEASIBLE,
+            RunStatus.TIMED_OUT,
+            RunStatus.DEGRADED,
+        }:
+            raise ValueError(f"{status.value} is not a worker failure status")
+        self.transition(
+            run_id,
+            status,
+            failure_code=failure_code,
+            failure_message=failure_message,
+        )
+        return self.result(run_id)
 
     def request_cancellation(self, run_id: UUID) -> RunResponse:
         row = self._get_row(run_id)

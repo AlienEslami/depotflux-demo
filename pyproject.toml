@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "agentic-aggregator-workflow"
 version = "0.1.0"
 description = "Standalone Python orchestration for the Agentic Aggregator real-time workflow"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
   "alembic",
   "fastapi",
@@ -30,13 +30,15 @@ gurobi = ["gurobipy==13.0.2"]
 [project.scripts]
 agentic-aggregator = "agentic_workflow.cli:main"
 agentic-aggregator-api = "aggregator_demo.cli:main"
+agentic-aggregator-worker = "aggregator_demo.worker:main"
 
 [tool.setuptools]
 packages = ["agentic_workflow", "aggregator_demo"]
-py-modules = ["app_rt"]
+py-modules = ["app", "app_rt"]
 
 [tool.setuptools.package-data]
 agentic_workflow = ["prompts/*.txt"]
+aggregator_demo = ["demo_data/*.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

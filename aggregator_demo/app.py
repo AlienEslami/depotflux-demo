@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
@@ -12,11 +13,13 @@ from sqlalchemy.orm import Session
 from . import __version__
 from .contracts import (
     CapabilityResponse,
+    DemoInputListResponse,
     ErrorResponse,
     HealthResponse,
     RunCreateRequest,
     RunListResponse,
     RunResponse,
+    RunResultResponse,
     RunStatus,
 )
 from .database import (
@@ -24,6 +27,11 @@ from .database import (
     create_schema,
     create_session_factory,
     ping_database,
+)
+from .input_registry import (
+    DemoInputIntegrityError,
+    DemoInputNotFoundError,
+    DemoInputRegistry,
 )
 from .run_repository import RunConflictError, RunNotFoundError, RunRepository
 
@@ -47,6 +55,7 @@ def create_app(
     *,
     database_url: str | None = None,
     initialize_schema: bool | None = None,
+    input_root: Path | None = None,
 ) -> FastAPI:
     engine = create_database_engine(database_url)
     if initialize_schema is None:
@@ -64,6 +73,7 @@ def create_app(
     )
     application.state.database_engine = engine
     application.state.session_factory = create_session_factory(engine)
+    application.state.input_registry = DemoInputRegistry(input_root)
 
     @application.get(
         "/health/live",
@@ -118,6 +128,15 @@ def create_app(
             run_statuses=list(RunStatus),
         )
 
+    @application.get(
+        "/api/v1/inputs",
+        response_model=DemoInputListResponse,
+        tags=["inputs"],
+        summary="List immutable inputs bundled with the demonstrator",
+    )
+    def list_demo_inputs() -> DemoInputListResponse:
+        return DemoInputListResponse(items=application.state.input_registry.list())
+
     @application.post(
         "/api/v1/runs",
         response_model=RunResponse,
@@ -139,12 +158,32 @@ def create_app(
         ] = "demo-operator",
     ):
         try:
+            application.state.input_registry.verify(
+                request.input_reference,
+                request.input_sha256,
+            )
             created_run, _ = RunRepository(session).create(
                 request,
                 requested_by=operator_id,
                 idempotency_key=idempotency_key,
             )
             return created_run
+        except DemoInputNotFoundError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                content=ErrorResponse(
+                    code=exc.code,
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+        except DemoInputIntegrityError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                content=ErrorResponse(
+                    code=exc.code,
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
         except RunConflictError as exc:
             return JSONResponse(
                 status_code=status.HTTP_409_CONFLICT,
@@ -169,6 +208,36 @@ def create_app(
                 status_code=status.HTTP_404_NOT_FOUND,
                 content=ErrorResponse(
                     code="run_not_found",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+
+    @application.get(
+        "/api/v1/runs/{run_id}/result",
+        response_model=RunResultResponse,
+        tags=["runs"],
+        summary="Get a terminal run result or explicit failure",
+        responses={
+            404: {"model": ErrorResponse},
+            409: {"model": ErrorResponse},
+        },
+    )
+    def get_run_result(run_id: UUID, session: SessionDependency):
+        try:
+            return RunRepository(session).result(run_id)
+        except RunNotFoundError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content=ErrorResponse(
+                    code="run_not_found",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+        except RunConflictError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                content=ErrorResponse(
+                    code="run_not_complete",
                     message=str(exc),
                 ).model_dump(mode="json"),
             )

@@ -11,18 +11,19 @@ from sqlalchemy import inspect
 
 from aggregator_demo.app import create_app
 from aggregator_demo.contracts import RunCreateRequest, RunStatus
+from aggregator_demo.input_registry import DemoInputRegistry
 from aggregator_demo.run_repository import RunConflictError, RunRepository
 
 
-SHA256 = "a" * 64
+DEMO_INPUT = DemoInputRegistry().descriptor("demo/depot-a-8-v1")
 
 
 def request_body(**overrides):
     body = {
         "run_type": "day_ahead",
         "optimization_mode": "selfish",
-        "input_reference": "synthetic/depot-a-32-v1",
-        "input_sha256": SHA256,
+        "input_reference": DEMO_INPUT.reference,
+        "input_sha256": DEMO_INPUT.sha256,
         "v2g_enabled": True,
         "agent_backend": "rule",
         "scenario_ids": ["nominal"],
@@ -117,6 +118,29 @@ def test_invalid_contract_is_rejected_before_persistence(app):
     assert client.get("/api/v1/runs").json()["items"] == []
 
 
+def test_registered_inputs_are_discoverable_and_hash_verified(app):
+    client = TestClient(app)
+
+    inputs = client.get("/api/v1/inputs")
+    assert inputs.status_code == 200
+    assert [item["fleet_size"] for item in inputs.json()["items"]] == [8, 16, 32]
+
+    unknown = client.post(
+        "/api/v1/runs",
+        json=request_body(input_reference="demo/not-registered"),
+    )
+    assert unknown.status_code == 422
+    assert unknown.json()["code"] == "input_reference_unknown"
+
+    mismatched = client.post(
+        "/api/v1/runs",
+        json=request_body(input_sha256="a" * 64),
+    )
+    assert mismatched.status_code == 409
+    assert mismatched.json()["code"] == "input_integrity_error"
+    assert client.get("/api/v1/runs").json()["items"] == []
+
+
 def test_runs_survive_application_restart(database_url: str):
     first_app = create_app(database_url=database_url, initialize_schema=True)
     created = TestClient(first_app).post(
@@ -175,5 +199,12 @@ def test_initial_alembic_migration_builds_run_table(tmp_path: Path):
     inspector = inspect(migrated_app.state.database_engine)
     assert "optimization_runs" in inspector.get_table_names()
     columns = {column["name"] for column in inspector.get_columns("optimization_runs")}
-    assert {"id", "status", "request_fingerprint", "completed_at"} <= columns
+    assert {
+        "id",
+        "status",
+        "request_fingerprint",
+        "completed_at",
+        "worker_id",
+        "result_payload",
+    } <= columns
     migrated_app.state.database_engine.dispose()

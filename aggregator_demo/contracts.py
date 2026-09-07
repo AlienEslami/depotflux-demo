@@ -101,6 +101,33 @@ class RunListResponse(StrictContract):
     offset: int
 
 
+class RunResultResponse(StrictContract):
+    run_id: UUID
+    status: RunStatus
+    solver_name: str | None = None
+    result_sha256: str | None = None
+    result: dict | None = None
+    failure_code: str | None = None
+    failure_message: str | None = None
+
+
+class DemoInputResponse(StrictContract):
+    reference: str
+    sha256: str
+    filename: str
+    depot: str
+    fleet_size: int = Field(ge=1)
+    charger_count: int = Field(ge=1)
+    trip_count: int = Field(ge=1)
+    horizon_intervals: int = Field(ge=1)
+    interval_minutes: int = Field(ge=1)
+    provenance: str
+
+
+class DemoInputListResponse(StrictContract):
+    items: list[DemoInputResponse]
+
+
 class ErrorResponse(StrictContract):
     code: str
     message: str
