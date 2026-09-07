@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import timezone
+from datetime import timedelta, timezone
 from uuid import UUID, uuid4
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -80,6 +80,8 @@ def run_response(row: RunRow) -> RunResponse:
         updated_at=_as_utc(row.updated_at),
         started_at=_as_utc(row.started_at),
         completed_at=_as_utc(row.completed_at),
+        recovery_count=row.recovery_count,
+        last_recovered_at=_as_utc(row.last_recovered_at),
         failure_code=row.failure_code,
         failure_message=row.failure_message,
     )
@@ -180,7 +182,8 @@ class RunRepository:
                 .values(
                     status=RunStatus.RUNNING.value,
                     worker_id=worker_id,
-                    started_at=now,
+                    started_at=func.coalesce(RunRow.started_at, now),
+                    heartbeat_at=now,
                     updated_at=now,
                 )
             )
@@ -191,26 +194,69 @@ class RunRepository:
         return None
 
     def complete(self, run_id: UUID, result: dict) -> RunResultResponse:
+        return self._complete_with_result(
+            run_id,
+            result,
+            status=RunStatus.SUCCEEDED,
+        )
+
+    def complete_degraded(
+        self,
+        run_id: UUID,
+        result: dict,
+        *,
+        failure_code: str,
+        failure_message: str,
+    ) -> RunResultResponse:
+        return self._complete_with_result(
+            run_id,
+            result,
+            status=RunStatus.DEGRADED,
+            failure_code=failure_code,
+            failure_message=failure_message,
+        )
+
+    def _complete_with_result(
+        self,
+        run_id: UUID,
+        result: dict,
+        *,
+        status: RunStatus,
+        failure_code: str | None = None,
+        failure_message: str | None = None,
+    ) -> RunResultResponse:
         canonical_result = json.dumps(
             result,
             sort_keys=True,
             separators=(",", ":"),
             allow_nan=False,
         ).encode("utf-8")
+        self.session.expire_all()
         row = self._get_row(run_id)
         current = RunStatus(row.status)
-        if current not in {RunStatus.RUNNING, RunStatus.CANCEL_REQUESTED}:
+        if current == RunStatus.CANCEL_REQUESTED:
+            now = utc_now()
+            row.status = RunStatus.CANCELLED.value
+            row.updated_at = now
+            row.completed_at = now
+            row.heartbeat_at = now
+            row.failure_code = "operator_cancelled"
+            row.failure_message = "The operator cancelled the run before its result was committed."
+            self.session.commit()
+            return self.result(run_id)
+        if current != RunStatus.RUNNING:
             raise RunConflictError(
                 f"run {run_id} cannot complete from {current.value}"
             )
         row.result_payload = result
         row.result_sha256 = hashlib.sha256(canonical_result).hexdigest()
         row.solver_name = result.get("solver_name")
-        row.status = RunStatus.SUCCEEDED.value
+        row.status = status.value
         row.updated_at = utc_now()
         row.completed_at = row.updated_at
-        row.failure_code = None
-        row.failure_message = None
+        row.heartbeat_at = row.updated_at
+        row.failure_code = failure_code
+        row.failure_message = failure_message
         self.session.commit()
         return self.result(run_id)
 
@@ -229,6 +275,16 @@ class RunRepository:
             RunStatus.DEGRADED,
         }:
             raise ValueError(f"{status.value} is not a worker failure status")
+        self.session.expire_all()
+        current = RunStatus(self._get_row(run_id).status)
+        if current == RunStatus.CANCEL_REQUESTED:
+            self.transition(
+                run_id,
+                RunStatus.CANCELLED,
+                failure_code="operator_cancelled",
+                failure_message="The operator cancelled the run during optimization.",
+            )
+            return self.result(run_id)
         self.transition(
             run_id,
             status,
@@ -236,6 +292,45 @@ class RunRepository:
             failure_message=failure_message,
         )
         return self.result(run_id)
+
+    def recover_stale(
+        self,
+        *,
+        stale_after_seconds: float,
+    ) -> list[RunResponse]:
+        """Return abandoned claims to the queue and finish stale cancellations."""
+        if stale_after_seconds < 0:
+            raise ValueError("stale_after_seconds must be nonnegative")
+        now = utc_now()
+        cutoff = now - timedelta(seconds=stale_after_seconds)
+        rows = self.session.scalars(
+            select(RunRow).where(
+                RunRow.status.in_(
+                    [RunStatus.RUNNING.value, RunStatus.CANCEL_REQUESTED.value]
+                ),
+                func.coalesce(RunRow.heartbeat_at, RunRow.updated_at) < cutoff,
+            )
+        ).all()
+        recovered: list[RunResponse] = []
+        for row in rows:
+            if RunStatus(row.status) == RunStatus.CANCEL_REQUESTED:
+                row.status = RunStatus.CANCELLED.value
+                row.completed_at = now
+                row.failure_code = "operator_cancelled"
+                row.failure_message = (
+                    "The operator cancelled the run before a replacement worker resumed it."
+                )
+            else:
+                row.status = RunStatus.QUEUED.value
+                row.worker_id = None
+                row.heartbeat_at = None
+                row.recovery_count += 1
+                row.last_recovered_at = now
+            row.updated_at = now
+            recovered.append(run_response(row))
+        if rows:
+            self.session.commit()
+        return recovered
 
     def request_cancellation(self, run_id: UUID) -> RunResponse:
         row = self._get_row(run_id)
@@ -271,8 +366,11 @@ class RunRepository:
         row.updated_at = now
         if target == RunStatus.RUNNING and row.started_at is None:
             row.started_at = now
+        if target == RunStatus.RUNNING:
+            row.heartbeat_at = now
         if target.is_terminal:
             row.completed_at = now
+            row.heartbeat_at = now
         row.failure_code = failure_code
         row.failure_message = failure_message
         self.session.commit()

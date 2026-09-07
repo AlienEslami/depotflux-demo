@@ -708,7 +708,7 @@ def _extract_solver_telemetry(solved, model, measured):
     return telemetry
 
 
-def solve_rt_rescheduling(ctx, *, build_only=False):
+def solve_rt_rescheduling(ctx, *, build_only=False, time_limit_seconds=None):
     buses = ctx["buses"]
     chargers = ctx["chargers"]
     trips = ctx["trips"]
@@ -986,7 +986,11 @@ def solve_rt_rescheduling(ctx, *, build_only=False):
             "optimization_strategy": "model_construction_only",
         }
 
-    time_limit = float(os.environ.get("RT_SOLVER_TIME_LIMIT", "300"))
+    time_limit = (
+        float(time_limit_seconds)
+        if time_limit_seconds is not None
+        else float(os.environ.get("RT_SOLVER_TIME_LIMIT", "300"))
+    )
     mip_gap = float(os.environ.get("RT_SOLVER_MIP_GAP", "0.02"))
     solver_tee = parse_bool(os.environ.get("RT_SOLVER_TEE"), False)
     configured_order = os.environ.get(

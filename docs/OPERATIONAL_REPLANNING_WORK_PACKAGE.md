@@ -26,7 +26,7 @@ asset.
 | 1 | Versioned notice contracts, persistence, and simulator | Only a successful approved run can become a baseline | Implemented |
 | 2 | Remaining-horizon worker integration | A real solver result is linked to the notice and baseline hashes | Implemented |
 | 3 | Operator notice and comparison surface | Source message, facts, rationale, and metric deltas are visible | Implemented |
-| 4 | Failure and recovery coverage | Infeasible, timed-out, cancelled, and invalid candidates remain distinct and cannot be approved | Next |
+| 4 | Failure and recovery coverage | Infeasible, timed-out, cancelled, and invalid candidates remain distinct and cannot be approved | Implemented |
 | 5 | Five-minute browser acceptance journey | A first-time reviewer completes the combined disruption story without a terminal | Next |
 
 ## Current frozen scenarios
@@ -34,6 +34,10 @@ asset.
 - Bus 1 returns 30 minutes late.
 - Charger 1 is limited from 200 kW to 150 kW during timesteps 15–22.
 - The combined scenario applies both changes at the same observation point.
+- A depot-power-isolation notice produces a preserved, degraded candidate that
+  fails deterministic operational validation.
+- Controlled day-ahead drills produce genuine infeasible and solver-timeout
+  terminal states from the mathematical core.
 
 These parameters are deliberately mild enough to produce a validated candidate
 on the portable HiGHS solver. More severe disruptions belong in the controlled
@@ -41,14 +45,21 @@ failure demonstration rather than the nominal path.
 
 ## Remaining package work
 
-- Add explicit timeout and cancellation handling around the real-time solver.
 - Show bus-level SOC and assignment differences, not only aggregate metrics.
-- Add a controlled infeasible scenario and a recoverable worker-interruption
-  scenario.
 - Add Playwright coverage for baseline approval, event simulation, replanning,
   validation blocking, and final decision.
 - Run the five-minute demonstration on documented reference hardware and record
   latency measurements.
+
+## Failure and recovery behavior
+
+- Queued cancellation terminates immediately; running cancellation is durable
+  and wins over any result returned later by the solver.
+- Solver time limits are classified separately from mathematical infeasibility.
+- Candidates returned with failed deterministic checks are retained as
+  `degraded` for diagnosis and cannot be approved.
+- A worker starting after the stale-claim threshold requeues an abandoned run,
+  increments its recovery count, and adds a recovery event to the audit trail.
 
 ## Definition of done
 

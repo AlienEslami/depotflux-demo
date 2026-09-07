@@ -119,3 +119,47 @@ def test_notice_requires_an_approved_baseline(tmp_path: Path):
     assert "approved candidate" in response.json()["message"]
     assert client.get("/api/v1/notices").json()["items"] == []
     app.state.database_engine.dispose()
+
+
+def test_site_power_isolation_is_preserved_as_a_degraded_candidate(
+    tmp_path: Path,
+    monkeypatch,
+):
+    database_url = f"sqlite:///{(tmp_path / 'isolation.db').as_posix()}"
+    app = create_app(database_url=database_url, initialize_schema=True)
+    client = TestClient(app)
+    baseline_id = _approved_baseline(client, database_url, monkeypatch)
+
+    notice = client.post(
+        "/api/v1/notices/simulate",
+        json={
+            "baseline_run_id": baseline_id,
+            "scenario": "site_power_isolation",
+        },
+    ).json()
+    deratings = notice["structured_facts"]["charger_deratings"]
+    assert len(deratings) == DEMO_INPUT.charger_count
+    assert {item["to_kw"] for item in deratings} == {0.0}
+
+    monkeypatch.setattr(
+        "aggregator_demo.worker.optimize_real_time",
+        lambda *_args, **_kwargs: {
+            "solver_name": "isolation-test",
+            "validation": {
+                "passed": False,
+                "failed_checks": ["no_soc_shortfall"],
+            },
+        },
+    )
+    assert execute_one(database_url=database_url, worker_id="isolation-worker") is True
+
+    candidate_id = notice["candidate_run_id"]
+    result = client.get(f"/api/v1/runs/{candidate_id}/result").json()
+    assert result["status"] == "degraded"
+    assert result["result"]["validation"]["passed"] is False
+    approval = client.post(
+        f"/api/v1/runs/{candidate_id}/approval",
+        json={"decision": "approved"},
+    )
+    assert approval.status_code == 409
+    app.state.database_engine.dispose()

@@ -790,7 +790,7 @@ def apply_disturbances(sc, disturbances):
 #   = sum((S_buy[t]  - P[t]) × w_buy[t])   ← margin on energy sold to PTO
 #   + sum((P[t] - S_sell[t]) × w_sell[t])  ← margin on V2G resold to grid
 # ==============================================================================
-def solvePTO(sc):
+def solvePTO(sc, *, time_limit_seconds=None):
     T       = sc['T_steps']
     P       = sc['P']
     S_buy   = sc['S_buy']
@@ -937,7 +937,11 @@ def solvePTO(sc):
 
     model.obj = pyo.Objective(rule=rule_obj, sense=pyo.minimize)
 
-    time_limit = float(os.environ.get('DA_SOLVER_TIME_LIMIT', '300'))
+    time_limit = (
+        float(time_limit_seconds)
+        if time_limit_seconds is not None
+        else float(os.environ.get('DA_SOLVER_TIME_LIMIT', '300'))
+    )
     mip_gap = float(os.environ.get('DA_SOLVER_MIP_GAP', '0.04'))
     solver_tee = parse_bool(os.environ.get('DA_SOLVER_TEE'), default=False)
     configured_order = os.environ.get(
@@ -975,6 +979,8 @@ def solvePTO(sc):
             model._solver_fallback_errors = solver_errors
             print('PTO done')
             return model
+        if time_limit_seconds is not None and 'timelimit' in str(tc).lower():
+            raise TimeoutError(f'day-ahead solver reached its {time_limit:g}s limit')
         print(f'PTO infeasible: {tc}')
         return None
 

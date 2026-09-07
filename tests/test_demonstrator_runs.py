@@ -106,6 +106,50 @@ def test_queued_run_can_be_cancelled_idempotently(app):
     assert second.json()["status"] == "cancelled"
 
 
+def test_running_cancellation_discards_a_late_solver_result(app):
+    client = TestClient(app)
+    created = client.post("/api/v1/runs", json=request_body()).json()
+    run_id = UUID(created["id"])
+
+    with app.state.session_factory() as session:
+        repository = RunRepository(session)
+        assert repository.claim_next(worker_id="slow-worker") is not None
+
+    requested = client.post(f"/api/v1/runs/{run_id}/cancel")
+    assert requested.json()["status"] == "cancel_requested"
+
+    with app.state.session_factory() as session:
+        completed = RunRepository(session).complete(
+            run_id,
+            {"solver_name": "late-solver", "validation": {"passed": True}},
+        )
+
+    assert completed.status == RunStatus.CANCELLED
+    assert completed.result is None
+    assert completed.failure_code == "operator_cancelled"
+    approval = client.post(
+        f"/api/v1/runs/{run_id}/approval",
+        json={"decision": "approved"},
+    )
+    assert approval.status_code == 409
+
+
+def test_controlled_failure_drill_is_queued_with_a_frozen_scenario(app):
+    client = TestClient(app)
+    response = client.post(
+        "/api/v1/failure-drills",
+        json={
+            "input_reference": DEMO_INPUT.reference,
+            "input_sha256": DEMO_INPUT.sha256,
+            "drill_type": "infeasible",
+        },
+    )
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "queued"
+    assert response.json()["scenario_ids"] == ["failure_drill:infeasible"]
+
+
 def test_invalid_contract_is_rejected_before_persistence(app):
     client = TestClient(app)
 
@@ -208,5 +252,8 @@ def test_initial_alembic_migration_builds_run_table(tmp_path: Path):
         "completed_at",
         "worker_id",
         "result_payload",
+        "heartbeat_at",
+        "recovery_count",
+        "last_recovered_at",
     } <= columns
     migrated_app.state.database_engine.dispose()

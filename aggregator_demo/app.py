@@ -18,11 +18,13 @@ from .approval_repository import (
     ApprovalRepository,
 )
 from .contracts import (
+    AgentBackend,
     ApprovalCreateRequest,
     ApprovalResponse,
     CapabilityResponse,
     DemoInputListResponse,
     ErrorResponse,
+    FailureDrillCreateRequest,
     HealthResponse,
     NoticeCreateRequest,
     NoticeListResponse,
@@ -33,6 +35,7 @@ from .contracts import (
     RunResultResponse,
     RunStatus,
     RunTimelineResponse,
+    RunType,
 )
 from .database import (
     create_database_engine,
@@ -170,6 +173,69 @@ def create_app(
     )
     def list_demo_inputs() -> DemoInputListResponse:
         return DemoInputListResponse(items=application.state.input_registry.list())
+
+    @application.post(
+        "/api/v1/failure-drills",
+        response_model=RunResponse,
+        status_code=status.HTTP_202_ACCEPTED,
+        tags=["runs"],
+        summary="Queue a controlled solver failure for an operator drill",
+        responses={409: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+    )
+    def create_failure_drill(
+        request: FailureDrillCreateRequest,
+        session: SessionDependency,
+        idempotency_key: Annotated[
+            str | None,
+            Header(alias="Idempotency-Key", min_length=1, max_length=128),
+        ] = None,
+        operator_id: Annotated[
+            str,
+            Header(alias="X-Operator-ID", min_length=1, max_length=128),
+        ] = "demo-operator",
+    ):
+        try:
+            application.state.input_registry.verify(
+                request.input_reference,
+                request.input_sha256,
+            )
+            created_run, _ = RunRepository(session).create(
+                RunCreateRequest(
+                    run_type=RunType.DAY_AHEAD,
+                    input_reference=request.input_reference,
+                    input_sha256=request.input_sha256,
+                    v2g_enabled=True,
+                    agent_backend=AgentBackend.RULE,
+                    scenario_ids=[f"failure_drill:{request.drill_type.value}"],
+                ),
+                requested_by=operator_id,
+                idempotency_key=idempotency_key,
+            )
+            return created_run
+        except DemoInputNotFoundError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                content=ErrorResponse(
+                    code=exc.code,
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+        except DemoInputIntegrityError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                content=ErrorResponse(
+                    code=exc.code,
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+        except RunConflictError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                content=ErrorResponse(
+                    code="idempotency_conflict",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
 
     @application.post(
         "/api/v1/runs",

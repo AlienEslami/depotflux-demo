@@ -70,6 +70,8 @@ type Run = {
   updated_at: string;
   started_at: string | null;
   completed_at: string | null;
+  recovery_count: number;
+  last_recovered_at: string | null;
   failure_code: string | null;
   failure_message: string | null;
 };
@@ -126,7 +128,13 @@ type ComparisonMetrics = {
   peak_import_kwh: number;
 };
 
-type NoticeScenario = 'late_return' | 'charger_derating' | 'combined_disruption';
+type NoticeScenario =
+  | 'late_return'
+  | 'charger_derating'
+  | 'combined_disruption'
+  | 'site_power_isolation';
+
+type FailureDrillType = 'infeasible' | 'solver_timeout';
 
 type OperationalNotice = {
   id: string;
@@ -197,6 +205,16 @@ function displayStatus(status: string) {
   return status.replaceAll('_', ' ');
 }
 
+function statusBadgeClass(status: string) {
+  if (status === 'succeeded') return 'border-emerald-400/25 text-emerald-300';
+  if (status === 'running') return 'border-cyan-400/25 text-cyan-300';
+  if (status === 'queued') return 'border-blue-400/25 text-blue-300';
+  if (status === 'cancel_requested') return 'border-amber-400/25 text-amber-200';
+  if (status === 'degraded') return 'border-orange-400/25 text-orange-200';
+  if (status === 'cancelled') return 'border-slate-400/25 text-slate-300';
+  return 'border-rose-400/25 text-rose-200';
+}
+
 function formatNumber(value: number | undefined, digits = 1) {
   return value === undefined
     ? '—'
@@ -225,12 +243,15 @@ export default function Home() {
   const [approval, setApproval] = useState<Approval | null>(null);
   const [notice, setNotice] = useState<OperationalNotice | null>(null);
   const [noticeScenario, setNoticeScenario] = useState<NoticeScenario>('combined_disruption');
+  const [failureDrill, setFailureDrill] = useState<FailureDrillType>('infeasible');
   const [timeline, setTimeline] = useState<AuditEvent[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [decisionOpen, setDecisionOpen] = useState(false);
   const [decisionNote, setDecisionNote] = useState('');
   const [deciding, setDeciding] = useState(false);
   const [simulating, setSimulating] = useState(false);
+  const [drilling, setDrilling] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [message, setMessage] = useState('');
 
   const selectedInput = useMemo(
@@ -357,6 +378,33 @@ export default function Home() {
     return created;
   }, []);
 
+  const queueFailureDrill = useCallback(async (
+    input: DemoInput,
+    drillType: FailureDrillType,
+  ) => {
+    const response = await fetch(`${API_BASE}/api/v1/failure-drills`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': crypto.randomUUID(),
+        'X-Operator-ID': 'demonstrator-operator',
+      },
+      body: JSON.stringify({
+        input_reference: input.reference,
+        input_sha256: input.sha256,
+        drill_type: drillType,
+      }),
+    });
+    if (!response.ok) {
+      const error = (await response.json()) as { message?: string };
+      throw new Error(error.message ?? 'The failure drill could not be queued.');
+    }
+    const created = (await response.json()) as Run;
+    setRuns((current) => [created, ...current.filter((run) => run.id !== created.id)]);
+    setSelectedRunId(created.id);
+    return created;
+  }, []);
+
   const queueReplan = useCallback(async (
     baselineRunId: string,
     scenario: NoticeScenario,
@@ -445,6 +493,53 @@ export default function Home() {
     }
   }
 
+  async function submitFailureDrill() {
+    if (!selectedInput) return;
+    setDrilling(true);
+    setMessage('');
+    try {
+      const created = await queueFailureDrill(selectedInput, failureDrill);
+      setMessage(
+        `Controlled ${displayStatus(failureDrill)} drill ${shortRunId(created.id)} entered the queue.`,
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failure drill submission failed.');
+    } finally {
+      setDrilling(false);
+    }
+  }
+
+  async function cancelSelectedRun() {
+    if (!selectedRunId) return;
+    setCancelling(true);
+    setMessage('');
+    try {
+      const response = await fetch(`${API_BASE}/api/v1/runs/${selectedRunId}/cancel`, {
+        method: 'POST',
+        headers: { 'X-Operator-ID': 'demonstrator-operator' },
+      });
+      if (!response.ok) {
+        const error = (await response.json()) as { message?: string };
+        throw new Error(error.message ?? 'The run could not be cancelled.');
+      }
+      const cancelled = (await response.json()) as Run;
+      setRuns((current) => [
+        cancelled,
+        ...current.filter((run) => run.id !== cancelled.id),
+      ]);
+      setMessage(
+        cancelled.status === 'cancel_requested'
+          ? 'Cancellation recorded; the worker will discard any late solver result.'
+          : 'Run cancelled before optimization began.',
+      );
+      await loadRun(selectedRunId);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Cancellation failed.');
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   useEffect(() => {
     const context = (document as WebMcpDocument).modelContext;
     if (!context?.registerTool) return;
@@ -489,6 +584,99 @@ export default function Home() {
     void Promise.resolve(
       context.registerTool(
         {
+          name: 'queue_failure_drill',
+          title: 'Queue failure drill',
+          description: 'Queue a controlled infeasible-model or solver-timeout drill using a registered demo input.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              input_reference: { type: 'string' },
+              drill_type: {
+                type: 'string',
+                enum: ['infeasible', 'solver_timeout'],
+              },
+            },
+            required: ['input_reference', 'drill_type'],
+            additionalProperties: false,
+          },
+          annotations: { readOnlyHint: false, untrustedContentHint: false },
+          async execute(value) {
+            const input = value as { input_reference?: unknown; drill_type?: unknown };
+            const drillTypes = new Set(['infeasible', 'solver_timeout']);
+            if (
+              typeof input.input_reference !== 'string'
+              || typeof input.drill_type !== 'string'
+              || !drillTypes.has(input.drill_type)
+            ) {
+              throw new Error('A registered input_reference and supported drill_type are required.');
+            }
+            const demoInput = inputs.find((item) => item.reference === input.input_reference);
+            if (!demoInput) throw new Error('The requested demo input is not registered.');
+            const created = await queueFailureDrill(
+              demoInput,
+              input.drill_type as FailureDrillType,
+            );
+            return { run_id: created.id, status: created.status, drill_type: input.drill_type };
+          },
+        },
+        { signal: lifecycle.signal },
+      ),
+    ).catch(() => undefined);
+    return () => lifecycle.abort();
+  }, [inputs, queueFailureDrill]);
+
+  useEffect(() => {
+    const context = (document as WebMcpDocument).modelContext;
+    if (!context?.registerTool) return;
+    const lifecycle = new AbortController();
+    void Promise.resolve(
+      context.registerTool(
+        {
+          name: 'cancel_optimization_run',
+          title: 'Cancel optimization run',
+          description: 'Cancel a queued run or request cancellation of a running optimization.',
+          inputSchema: {
+            type: 'object',
+            properties: { run_id: { type: 'string' } },
+            required: ['run_id'],
+            additionalProperties: false,
+          },
+          annotations: { readOnlyHint: false, untrustedContentHint: false },
+          async execute(value) {
+            const input = value as { run_id?: unknown };
+            if (typeof input.run_id !== 'string' || !input.run_id) {
+              throw new Error('run_id is required.');
+            }
+            const response = await fetch(`${API_BASE}/api/v1/runs/${input.run_id}/cancel`, {
+              method: 'POST',
+              headers: { 'X-Operator-ID': 'demonstrator-operator' },
+            });
+            if (!response.ok) {
+              const error = (await response.json()) as { message?: string };
+              throw new Error(error.message ?? 'The run could not be cancelled.');
+            }
+            const cancelled = (await response.json()) as Run;
+            setRuns((current) => [
+              cancelled,
+              ...current.filter((run) => run.id !== cancelled.id),
+            ]);
+            setSelectedRunId(cancelled.id);
+            return { run_id: cancelled.id, status: cancelled.status };
+          },
+        },
+        { signal: lifecycle.signal },
+      ),
+    ).catch(() => undefined);
+    return () => lifecycle.abort();
+  }, []);
+
+  useEffect(() => {
+    const context = (document as WebMcpDocument).modelContext;
+    if (!context?.registerTool) return;
+    const lifecycle = new AbortController();
+    void Promise.resolve(
+      context.registerTool(
+        {
           name: 'simulate_operational_notice',
           title: 'Simulate operational notice',
           description: 'Preserve a frozen depot disruption and queue a remaining-horizon optimization from an approved baseline.',
@@ -498,7 +686,7 @@ export default function Home() {
               baseline_run_id: { type: 'string' },
               scenario: {
                 type: 'string',
-                enum: ['late_return', 'charger_derating', 'combined_disruption'],
+                enum: ['late_return', 'charger_derating', 'combined_disruption', 'site_power_isolation'],
               },
             },
             required: ['baseline_run_id', 'scenario'],
@@ -507,7 +695,7 @@ export default function Home() {
           annotations: { readOnlyHint: false, untrustedContentHint: false },
           async execute(value) {
             const input = value as { baseline_run_id?: unknown; scenario?: unknown };
-            const scenarios = new Set(['late_return', 'charger_derating', 'combined_disruption']);
+            const scenarios = new Set(['late_return', 'charger_derating', 'combined_disruption', 'site_power_isolation']);
             if (typeof input.baseline_run_id !== 'string' || typeof input.scenario !== 'string' || !scenarios.has(input.scenario)) {
               throw new Error('A baseline_run_id and supported scenario are required.');
             }
@@ -662,6 +850,51 @@ export default function Home() {
               </div>
             </Card>
 
+            <Card className="border-rose-300/15 bg-card/80 shadow-2xl shadow-black/15">
+              <CardHeader className="border-b border-white/8 pb-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-rose-300">Resilience verification</p>
+                    <CardTitle className="mt-1 text-lg">Run a controlled failure drill</CardTitle>
+                  </div>
+                  <Badge variant="outline" className="border-rose-300/20 text-rose-200">
+                    Never approvable
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="grid gap-5 pt-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                <div className="grid gap-2 text-sm font-medium">
+                  <label htmlFor="failure-drill">Expected terminal state</label>
+                  <Select
+                    value={failureDrill}
+                    onValueChange={(value) => {
+                      if (value) setFailureDrill(value as FailureDrillType);
+                    }}
+                  >
+                    <SelectTrigger id="failure-drill" className="w-full border-white/10 bg-background/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="infeasible">Infeasible · initial SOC below hard minimum</SelectItem>
+                      <SelectItem value="solver_timeout">Timed out · 1 ms solver budget</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs font-normal leading-5 text-muted-foreground">
+                    These frozen drills exercise the real mathematical model and durable failure states. No result can reach operator approval.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="border-rose-300/25 text-rose-100 hover:bg-rose-300/10"
+                  disabled={!connected || !selectedInput || drilling}
+                  onClick={submitFailureDrill}
+                >
+                  <AlertTriangle className="size-4" />
+                  {drilling ? 'Submitting…' : 'Queue failure drill'}
+                </Button>
+              </CardContent>
+            </Card>
+
             <Card className="border-amber-300/15 bg-card/80 shadow-2xl shadow-black/15">
               <CardHeader className="border-b border-white/8 pb-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -690,6 +923,7 @@ export default function Home() {
                       <SelectItem value="late_return">Bus 1 · 30-minute late return</SelectItem>
                       <SelectItem value="charger_derating">Charger 1 · temporary 150 kW limit</SelectItem>
                       <SelectItem value="combined_disruption">Combined late return + charger derating</SelectItem>
+                      <SelectItem value="site_power_isolation">Failure drill · all charging power unavailable</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs font-normal leading-5 text-muted-foreground">
@@ -824,13 +1058,7 @@ export default function Home() {
                         </div>
                         <Badge
                           variant="outline"
-                          className={`capitalize ${
-                            run.status === 'succeeded'
-                              ? 'border-emerald-400/25 text-emerald-300'
-                              : run.status === 'running'
-                                ? 'border-cyan-400/25 text-cyan-300'
-                                : 'border-white/10 text-slate-300'
-                          }`}
+                          className={`capitalize ${statusBadgeClass(run.status)}`}
                         >
                           {displayStatus(run.status)}
                         </Badge>
@@ -949,13 +1177,35 @@ export default function Home() {
                   ))}
                 </div>
                 {runResult?.failure_message ? (
-                  <p className="mt-5 rounded-lg border border-rose-400/20 bg-rose-400/5 p-3 text-sm text-rose-200">
-                    {runResult.failure_message}
+                  <div className="mt-5 rounded-lg border border-rose-400/20 bg-rose-400/5 p-3 text-sm text-rose-200">
+                    <p>{runResult.failure_message}</p>
+                    {runResult.failure_code ? (
+                      <p className="mt-1 font-mono text-xs text-rose-300/70">{runResult.failure_code}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+                {selectedRun?.recovery_count ? (
+                  <p className="mt-5 rounded-lg border border-blue-400/20 bg-blue-400/5 p-3 text-sm text-blue-200">
+                    Worker recovery completed {selectedRun.recovery_count} time{selectedRun.recovery_count === 1 ? '' : 's'}; the run remained durable.
                   </p>
+                ) : null}
+                {selectedRun && ['queued', 'running', 'cancel_requested'].includes(selectedRun.status) ? (
+                  <Button
+                    variant="outline"
+                    disabled={cancelling || selectedRun.status === 'cancel_requested'}
+                    className="mt-6 w-full border-amber-300/25 text-amber-100 hover:bg-amber-300/10"
+                    onClick={cancelSelectedRun}
+                  >
+                    {selectedRun.status === 'cancel_requested'
+                      ? 'Cancellation pending'
+                      : cancelling
+                        ? 'Cancelling…'
+                        : 'Cancel run'}
+                  </Button>
                 ) : null}
                 <Button
                   disabled={!validationPassed || Boolean(approval)}
-                  className="mt-6 w-full"
+                  className="mt-3 w-full"
                   onClick={() => setDecisionOpen(true)}
                 >
                   {approval ? 'Decision recorded' : 'Review candidate'}

@@ -52,7 +52,11 @@ def notice_response(row: OperationalNoticeRow) -> NoticeResponse:
     )
 
 
-def _scenario_payload(scenario: NoticeScenario) -> dict:
+def _scenario_payload(
+    scenario: NoticeScenario,
+    *,
+    charger_count: int = 8,
+) -> dict:
     # Interval 14 has settled when the notice arrives; the candidate may only
     # change executable intervals beginning at 15.
     common = {"observed_at_timestep": 14, "effective_from_timestep": 15}
@@ -98,29 +102,56 @@ def _scenario_payload(scenario: NoticeScenario) -> dict:
                 "DepotFlux should calculate a revised feasible allocation."
             ),
         }
+    if scenario == NoticeScenario.COMBINED_DISRUPTION:
+        return {
+            "raw_notice": (
+                "Combined operations update: bus 1 will return 30 minutes late. Charger 1 "
+                "is limited to 150 kW from timestep 15 through timestep 22. Protect all "
+                "remaining service requirements."
+            ),
+            "structured_facts": {
+                **common,
+                "late_returns": [{"bus_id": 1, "delay_minutes": 30}],
+                "charger_deratings": [
+                    {
+                        "charger_id": 1,
+                        "from_kw": 200.0,
+                        "to_kw": 150.0,
+                        "start_timestep": 15,
+                        "end_timestep": 22,
+                    }
+                ],
+            },
+            "confidence": 0.99,
+            "rationale": (
+                "Vehicle availability and charger capacity changed together. A remaining-"
+                "horizon optimization is required before the operator can adopt a revised plan."
+            ),
+        }
     return {
         "raw_notice": (
-            "Combined operations update: bus 1 will return 30 minutes late. Charger 1 "
-            "is limited to 150 kW from timestep 15 through timestep 22. Protect all "
-            "remaining service requirements."
+            "Failure drill: Depot A has lost charging power from timestep 15 through "
+            "the end of the operating day. Preserve service requirements and report "
+            "any candidate that cannot pass validation."
         ),
         "structured_facts": {
             **common,
-            "late_returns": [{"bus_id": 1, "delay_minutes": 30}],
+            "late_returns": [],
             "charger_deratings": [
                 {
-                    "charger_id": 1,
+                    "charger_id": charger_id,
                     "from_kw": 200.0,
-                    "to_kw": 150.0,
+                    "to_kw": 0.0,
                     "start_timestep": 15,
-                    "end_timestep": 22,
+                    "end_timestep": 48,
                 }
+                for charger_id in range(1, charger_count + 1)
             ],
         },
-        "confidence": 0.99,
+        "confidence": 1.0,
         "rationale": (
-            "Vehicle availability and charger capacity changed together. A remaining-"
-            "horizon optimization is required before the operator can adopt a revised plan."
+            "This controlled isolation verifies that an operationally invalid candidate "
+            "is retained for diagnosis, marked degraded, and blocked from approval."
         ),
     }
 
@@ -191,7 +222,10 @@ class NoticeRepository:
                 "the idempotent candidate exists without its operational notice"
             )
 
-        payload = _scenario_payload(request.scenario)
+        payload = _scenario_payload(
+            request.scenario,
+            charger_count=len(baseline.result_payload.get("energy") or []) or 8,
+        )
         row = OperationalNoticeRow(
             id=str(uuid4()),
             baseline_run_id=baseline.id,

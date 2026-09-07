@@ -87,6 +87,13 @@ class RunRow(Base):
     failure_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     failure_message: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     worker_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    recovery_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    last_recovered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     solver_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     result_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     result_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
@@ -122,7 +129,8 @@ class OperationalNoticeRow(Base):
     __tablename__ = "operational_notices"
     __table_args__ = (
         CheckConstraint(
-            "scenario IN ('late_return','charger_derating','combined_disruption')",
+            "scenario IN ('late_return','charger_derating','combined_disruption',"
+            "'site_power_isolation')",
             name="ck_operational_notices_scenario",
         ),
         CheckConstraint(

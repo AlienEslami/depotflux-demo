@@ -13,6 +13,7 @@ from .notice_repository import NoticeNotFoundError, NoticeRepository
 from .optimizer_service import (
     OptimizationInfeasibleError,
     OptimizationResultError,
+    OptimizationTimeoutError,
     optimize_day_ahead,
     optimize_real_time,
 )
@@ -28,6 +29,7 @@ def execute_one(
     database_url: str | None = None,
     input_root: Path | None = None,
     worker_id: str | None = None,
+    stale_after_seconds: float | None = None,
 ) -> bool:
     engine = create_database_engine(database_url)
     session_factory = create_session_factory(engine)
@@ -35,6 +37,11 @@ def execute_one(
     try:
         with session_factory() as session:
             repository = RunRepository(session)
+            if stale_after_seconds is None:
+                stale_after_seconds = float(
+                    os.environ.get("DEMO_STALE_RUN_SECONDS", "1800")
+                )
+            repository.recover_stale(stale_after_seconds=stale_after_seconds)
             claimed = repository.claim_next(worker_id=worker_id or worker_identity())
             if claimed is None:
                 return False
@@ -52,14 +59,23 @@ def execute_one(
                     claimed.input_sha256,
                 )
                 if claimed.run_type == RunType.DAY_AHEAD:
-                    if claimed.scenario_ids not in ([], ["nominal"]):
+                    if claimed.scenario_ids in ([], ["nominal"]):
+                        solver_time_limit_seconds = None
+                    elif claimed.scenario_ids == ["failure_drill:infeasible"]:
+                        for bus in input_data.get("buses", []):
+                            bus["initial_soc"] = 0.0
+                        solver_time_limit_seconds = None
+                    elif claimed.scenario_ids == ["failure_drill:solver_timeout"]:
+                        solver_time_limit_seconds = 0.001
+                    else:
                         raise NotImplementedError(
-                            "only the nominal day-ahead scenario is connected to the worker"
+                            "the requested day-ahead scenario is not connected to the worker"
                         )
                     result = optimize_day_ahead(
                         input_data,
                         optimization_mode=claimed.optimization_mode.value,
                         v2g_enabled=claimed.v2g_enabled,
+                        solver_time_limit_seconds=solver_time_limit_seconds,
                     )
                 elif claimed.run_type == RunType.REAL_TIME:
                     notice = NoticeRepository(session).get_by_candidate(claimed.id)
@@ -82,7 +98,18 @@ def execute_one(
                     raise NotImplementedError(
                         f"run type {claimed.run_type.value} is unsupported"
                     )
-                repository.complete(claimed.id, result)
+                if result.get("validation", {}).get("passed") is True:
+                    repository.complete(claimed.id, result)
+                else:
+                    repository.complete_degraded(
+                        claimed.id,
+                        result,
+                        failure_code="deterministic_validation_failed",
+                        failure_message=(
+                            "The solver returned a candidate, but deterministic "
+                            "operational validation did not pass."
+                        ),
+                    )
             except DemoInputError as exc:
                 repository.fail(
                     claimed.id,
@@ -102,6 +129,13 @@ def execute_one(
                     claimed.id,
                     status=RunStatus.INFEASIBLE,
                     failure_code="optimization_infeasible",
+                    failure_message=str(exc),
+                )
+            except OptimizationTimeoutError as exc:
+                repository.fail(
+                    claimed.id,
+                    status=RunStatus.TIMED_OUT,
+                    failure_code="solver_time_limit",
                     failure_message=str(exc),
                 )
             except OptimizationResultError as exc:
@@ -135,12 +169,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--once", action="store_true", help="Process at most one queued run.")
     parser.add_argument("--poll-interval", type=float, default=2.0)
     parser.add_argument("--input-root", type=Path, default=None)
+    parser.add_argument("--stale-after", type=float, default=None)
     args = parser.parse_args(argv)
     database_url = database_url_from_environment()
     while True:
         processed = execute_one(
             database_url=database_url,
             input_root=args.input_root,
+            stale_after_seconds=args.stale_after,
         )
         if args.once:
             return 0

@@ -17,11 +17,21 @@ class OptimizationResultError(RuntimeError):
     pass
 
 
+class OptimizationTimeoutError(RuntimeError):
+    pass
+
+
+def _solver_status_is_timeout(status: object) -> bool:
+    normalized = str(status or "").lower().replace("_", "").replace(" ", "")
+    return "timelimit" in normalized or "maxtime" in normalized
+
+
 def optimize_day_ahead(
     input_data: dict,
     *,
     optimization_mode: str,
     v2g_enabled: bool,
+    solver_time_limit_seconds: float | None = None,
 ) -> dict:
     """Run the existing mathematical core without legacy job-file side effects."""
     optimizer_input = copy.deepcopy(input_data)
@@ -33,7 +43,13 @@ def optimize_day_ahead(
         optimization_mode="day_ahead",
         current_timestep=1,
     )
-    model = day_ahead_core.solvePTO(scalars)
+    try:
+        model = day_ahead_core.solvePTO(
+            scalars,
+            time_limit_seconds=solver_time_limit_seconds,
+        )
+    except TimeoutError as exc:
+        raise OptimizationTimeoutError(str(exc)) from exc
     if model is None:
         raise OptimizationInfeasibleError("day-ahead optimization is infeasible")
 
@@ -169,9 +185,16 @@ def optimize_real_time(
         current_timestep=current_timestep,
         disturbances=disturbances,
     )
-    model, solve_meta = real_time_core.solve_rt_rescheduling(context)
+    model, solve_meta = real_time_core.solve_rt_rescheduling(
+        context,
+        time_limit_seconds=structured_facts.get("solver_time_limit_seconds"),
+    )
     if model is None:
         reason = solve_meta.get("solver_status") or "unknown solver status"
+        if _solver_status_is_timeout(reason):
+            raise OptimizationTimeoutError(
+                f"remaining-horizon solver reached its time limit: {reason}"
+            )
         raise OptimizationInfeasibleError(
             f"remaining-horizon optimization is infeasible: {reason}"
         )
@@ -252,8 +275,13 @@ def optimize_real_time(
         },
     }
     _validate_result(result, bus_count=len(context["buses"]))
+    solver_completed_within_limit = not _solver_status_is_timeout(
+        result["solver_status"]
+    )
     validation_passed = (
-        result["service_unmet_count"] == 0 and result["soc_violation_count"] == 0
+        result["service_unmet_count"] == 0
+        and result["soc_violation_count"] == 0
+        and solver_completed_within_limit
     )
     result["validation"] = {
         "passed": validation_passed,
@@ -264,12 +292,14 @@ def optimize_real_time(
             "nonnegative_energy_and_site_exchange",
             "no_unserved_service",
             "no_soc_shortfall",
+            "solver_completed_within_limit",
         ],
         "failed_checks": [
             name
             for name, passed in (
                 ("no_unserved_service", result["service_unmet_count"] == 0),
                 ("no_soc_shortfall", result["soc_violation_count"] == 0),
+                ("solver_completed_within_limit", solver_completed_within_limit),
             )
             if not passed
         ],

@@ -140,6 +140,18 @@ class ApprovalRepository:
                     detail="Worker claimed the run and started optimization.",
                 )
             )
+        if run.last_recovered_at is not None:
+            events.append(
+                AuditEventResponse(
+                    event_type="run_recovered",
+                    occurred_at=_as_utc(run.last_recovered_at),
+                    actor="recovery-controller",
+                    detail=(
+                        "An abandoned worker claim was returned to the queue "
+                        f"(recovery {run.recovery_count})."
+                    ),
+                )
+            )
         if run.completed_at is not None:
             events.append(
                 AuditEventResponse(

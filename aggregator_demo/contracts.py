@@ -65,6 +65,14 @@ class NoticeScenario(StrEnum):
     LATE_RETURN = "late_return"
     CHARGER_DERATING = "charger_derating"
     COMBINED_DISRUPTION = "combined_disruption"
+    SITE_POWER_ISOLATION = "site_power_isolation"
+
+
+class FailureDrillType(StrEnum):
+    """Controlled, operator-visible failure cases for the demonstrator."""
+
+    INFEASIBLE = "infeasible"
+    SOLVER_TIMEOUT = "solver_timeout"
 
 
 class RunCreateRequest(StrictContract):
@@ -104,6 +112,8 @@ class RunResponse(StrictContract):
     updated_at: datetime
     started_at: datetime | None = None
     completed_at: datetime | None = None
+    recovery_count: int = Field(ge=0)
+    last_recovered_at: datetime | None = None
     failure_code: str | None = None
     failure_message: str | None = None
 
@@ -152,6 +162,7 @@ class AuditEventResponse(StrictContract):
         "notice_received",
         "run_submitted",
         "run_started",
+        "run_recovered",
         "run_completed",
         "decision_recorded",
     ]
@@ -168,6 +179,12 @@ class RunTimelineResponse(StrictContract):
 class NoticeCreateRequest(StrictContract):
     baseline_run_id: UUID
     scenario: NoticeScenario
+
+
+class FailureDrillCreateRequest(StrictContract):
+    input_reference: str = Field(min_length=1, max_length=255)
+    input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    drill_type: FailureDrillType
 
 
 class NoticeResponse(StrictContract):
