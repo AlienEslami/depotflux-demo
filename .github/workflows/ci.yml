@@ -17,7 +17,9 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          # The frozen reviewer environment currently pins NumPy 2.5.x,
+          # whose published wheels require Python 3.12 or newer.
+          python-version: "3.12"
           cache: pip
 
       - name: Install dependencies

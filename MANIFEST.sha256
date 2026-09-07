@@ -1,7 +1,7 @@
 SHA256  BYTES  PATH
 5a5b16ac9de16172f01ca73c735ac719b9fee519563d4e21e7401e9f48c810f0  1142  Agentic-Aggregator-Python-Workflow/.env.example
 0e29c94b09f989f25ea05b2a95d746d435bbc3407235c975314fc9e8ac6ea78d  426  Agentic-Aggregator-Python-Workflow/.gitattributes
-bd936bd5e8a7d8ff6b0f29198a1f767099e78407bd10e98cd9063e3543b67db3  581  Agentic-Aggregator-Python-Workflow/.github/workflows/ci.yml
+f453b58822c5b7f83254e5a2acefe1cd5c1d027dda543f59a7b72ca487591fa7  718  Agentic-Aggregator-Python-Workflow/.github/workflows/ci.yml
 56642f23e9959656257e3c6d43c014dd6870a5f01aeee68508d3b5d567c9f6b2  4393  Agentic-Aggregator-Python-Workflow/.gitignore
 c8e8e8d0c7436894ade8620633f769d95c2cf39c982e687036593d23e867d5b0  187  Agentic-Aggregator-Python-Workflow/agentic_workflow/__init__.py
 935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d  48  Agentic-Aggregator-Python-Workflow/agentic_workflow/__main__.py
@@ -40,7 +40,7 @@ e80082f58a0f466039a5a7a7474f2383c524662000083835f5061f82a708863a  49353  Agentic
 63fc011a2b48712c2a0e7f8faf35e5f2079a666bd2410bf601cc05fd0dc5d805  592  Agentic-Aggregator-Python-Workflow/data/README.md
 ab23dc8b5cc68f01162b1957aaefa064772df25f85a5d694e803acaaf1c3740c  294  Agentic-Aggregator-Python-Workflow/Dockerfile
 a6032255225efd22a45635e84dd99ef4f3b0ee95011dcbfacb0092285475337b  6001  Agentic-Aggregator-Python-Workflow/docs/FOLLOWUP_DISTURBANCE_RESULTS.md
-71e3b4d4f5b77433aa88459bfaa71514eed2dbd85f005704a481a812a0420ea6  23307  Agentic-Aggregator-Python-Workflow/docs/INDUSTRY_DEMONSTRATOR_WORK_PACKAGE.md
+47bb546a95f7e32a2b30c5e159ba27b26f71d6fec011e622fe7015149eed5dfe  23307  Agentic-Aggregator-Python-Workflow/docs/INDUSTRY_DEMONSTRATOR_WORK_PACKAGE.md
 3cfa8240362caec0f049b1a117a78d3b6607bf071659e5f46f249058170fd6c0  1692  Agentic-Aggregator-Python-Workflow/docs/PAPER_ABSTRACT.md
 13ed6ca818ab30c84d03f2bbc415adf4501b8f1899406945fc1adbaa7660f9f2  3548  Agentic-Aggregator-Python-Workflow/docs/PAPER_RESULTS.md
 42aef3c2b9a0674703f86884acd01850d428001c48117767c1f164188b93fd7d  13207  Agentic-Aggregator-Python-Workflow/docs/PYTHON_WORKFLOW.md

@@ -177,7 +177,7 @@ flowchart LR
 
 ### 6.1 Technology baseline
 
-- Backend API: Python 3.11 and FastAPI, reusing existing Pydantic models.
+- Backend API: Python 3.12 and FastAPI, reusing existing Pydantic models.
 - Domain and optimization: the existing `agentic_workflow` package, Pyomo, and
   the configured Gurobi or HiGHS solver.
 - Durable state: PostgreSQL.
