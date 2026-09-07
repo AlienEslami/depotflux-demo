@@ -22,6 +22,10 @@ from .contracts import (
     ApprovalCreateRequest,
     ApprovalResponse,
     CapabilityResponse,
+    ControlSimulationCreateRequest,
+    ControlSimulationListResponse,
+    ControlPolicyRejectionResponse,
+    ControlSimulationResponse,
     DemoInputListResponse,
     ErrorResponse,
     FailureDrillCreateRequest,
@@ -37,6 +41,7 @@ from .contracts import (
     RunTimelineResponse,
     RunType,
 )
+from .control_repository import ControlSimulationRepository
 from .database import (
     create_database_engine,
     create_schema,
@@ -52,6 +57,11 @@ from .notice_repository import (
     NoticeConflictError,
     NoticeNotFoundError,
     NoticeRepository,
+)
+from .ot_security import (
+    ControlAuthenticationError,
+    ControlPolicyError,
+    authenticate_control_key,
 )
 from .run_repository import RunConflictError, RunNotFoundError, RunRepository
 
@@ -76,6 +86,7 @@ def create_app(
     database_url: str | None = None,
     initialize_schema: bool | None = None,
     input_root: Path | None = None,
+    control_api_key: str | None = None,
 ) -> FastAPI:
     engine = create_database_engine(database_url)
     if initialize_schema is None:
@@ -94,6 +105,9 @@ def create_app(
     application.state.database_engine = engine
     application.state.session_factory = create_session_factory(engine)
     application.state.input_registry = DemoInputRegistry(input_root)
+    application.state.control_api_key = control_api_key or os.environ.get(
+        "DEMO_CONTROL_API_KEY"
+    )
     allowed_origins = [
         origin.strip()
         for origin in os.environ.get(
@@ -109,7 +123,12 @@ def create_app(
         allow_origins=allowed_origins,
         allow_credentials=False,
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type", "Idempotency-Key", "X-Operator-ID"],
+        allow_headers=[
+            "Content-Type",
+            "Idempotency-Key",
+            "X-Control-Key",
+            "X-Operator-ID",
+        ],
     )
 
     @application.get(
@@ -319,7 +338,7 @@ def create_app(
         summary="Get a terminal run result or explicit failure",
         responses={
             404: {"model": ErrorResponse},
-            409: {"model": ErrorResponse},
+            409: {"model": ControlPolicyRejectionResponse},
         },
     )
     def get_run_result(run_id: UUID, session: SessionDependency):
@@ -540,6 +559,129 @@ def create_app(
             limit=limit,
             offset=offset,
         )
+
+    @application.post(
+        "/api/v1/runs/{run_id}/control-simulations",
+        response_model=ControlSimulationResponse,
+        status_code=status.HTTP_201_CREATED,
+        tags=["ot-security"],
+        summary="Validate and persist a simulated Modbus site-power command",
+        responses={
+            401: {"model": ErrorResponse},
+            404: {"model": ErrorResponse},
+            409: {"model": ErrorResponse},
+            503: {"model": ErrorResponse},
+        },
+    )
+    def create_control_simulation(
+        run_id: UUID,
+        request: ControlSimulationCreateRequest,
+        session: SessionDependency,
+        control_key: Annotated[
+            str | None,
+            Header(alias="X-Control-Key", min_length=1, max_length=256),
+        ] = None,
+        operator_id: Annotated[
+            str,
+            Header(alias="X-Operator-ID", min_length=1, max_length=128),
+        ] = "demo-operator",
+    ):
+        try:
+            authenticate_control_key(control_key, application.state.control_api_key)
+            return ControlSimulationRepository(
+                session,
+                application.state.input_registry,
+            ).create(
+                run_id,
+                interval_index=request.interval_index,
+                requested_by=operator_id,
+            )
+        except ControlAuthenticationError as exc:
+            disabled = not application.state.control_api_key
+            return JSONResponse(
+                status_code=(
+                    status.HTTP_503_SERVICE_UNAVAILABLE
+                    if disabled
+                    else status.HTTP_401_UNAUTHORIZED
+                ),
+                content=ErrorResponse(
+                    code=(
+                        "control_simulation_disabled"
+                        if disabled
+                        else "control_authentication_failed"
+                    ),
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+        except RunNotFoundError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content=ErrorResponse(
+                    code="run_not_found",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+        except ControlPolicyError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                content=ControlPolicyRejectionResponse(
+                    message=str(exc),
+                    failed_check=exc.failed_check,
+                ).model_dump(mode="json"),
+            )
+
+    @application.get(
+        "/api/v1/runs/{run_id}/control-simulations",
+        response_model=ControlSimulationListResponse,
+        tags=["ot-security"],
+        summary="List persisted simulated control actions for a run",
+        responses={
+            401: {"model": ErrorResponse},
+            404: {"model": ErrorResponse},
+            503: {"model": ErrorResponse},
+        },
+    )
+    def list_control_simulations(
+        run_id: UUID,
+        session: SessionDependency,
+        control_key: Annotated[
+            str | None,
+            Header(alias="X-Control-Key", min_length=1, max_length=256),
+        ] = None,
+    ):
+        try:
+            authenticate_control_key(control_key, application.state.control_api_key)
+            return ControlSimulationListResponse(
+                items=ControlSimulationRepository(
+                    session,
+                    application.state.input_registry,
+                ).list(run_id)
+            )
+        except ControlAuthenticationError as exc:
+            disabled = not application.state.control_api_key
+            return JSONResponse(
+                status_code=(
+                    status.HTTP_503_SERVICE_UNAVAILABLE
+                    if disabled
+                    else status.HTTP_401_UNAUTHORIZED
+                ),
+                content=ErrorResponse(
+                    code=(
+                        "control_simulation_disabled"
+                        if disabled
+                        else "control_authentication_failed"
+                    ),
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+        except RunNotFoundError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content=ErrorResponse(
+                    code="run_not_found",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
 
     @application.post(
         "/api/v1/runs/{run_id}/cancel",

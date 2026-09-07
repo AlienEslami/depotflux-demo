@@ -12,7 +12,9 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Float,
+    Integer,
     String,
+    UniqueConstraint,
     create_engine,
     text,
 )
@@ -174,6 +176,43 @@ class OperationalNoticeRow(Base):
     )
 
 
+class ControlSimulationRow(Base):
+    __tablename__ = "control_simulations"
+    __table_args__ = (
+        UniqueConstraint(
+            "run_id",
+            "interval_index",
+            name="uq_control_simulations_run_interval",
+        ),
+        CheckConstraint(
+            "unit_id >= 1 AND unit_id <= 247",
+            name="ck_control_simulations_unit_id",
+        ),
+        CheckConstraint(
+            "register_address >= 0 AND register_address <= 65535",
+            name="ck_control_simulations_register_address",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    run_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("optimization_runs.id"), nullable=False, index=True
+    )
+    interval_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    setpoint_kw: Mapped[float] = mapped_column(Float, nullable=False)
+    unit_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    register_address: Mapped[int] = mapped_column(Integer, nullable=False)
+    register_scale_kw: Mapped[float] = mapped_column(Float, nullable=False)
+    modbus_frame_hex: Mapped[str] = mapped_column(String(24), nullable=False)
+    result_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    policy_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    policy_checks: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
+    requested_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
 def database_url_from_environment() -> str:
     return os.environ.get("DEMO_DATABASE_URL", DEFAULT_DATABASE_URL)
 
@@ -211,3 +250,4 @@ def ping_database(engine: Engine) -> None:
     with engine.connect() as connection:
         connection.execute(text("SELECT 1"))
         connection.execute(text("SELECT 1 FROM optimization_runs LIMIT 1"))
+        connection.execute(text("SELECT 1 FROM control_simulations LIMIT 1"))

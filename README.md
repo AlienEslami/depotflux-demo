@@ -51,6 +51,17 @@ with an approved baseline, and records one immutable approve/reject decision tie
 to the result hash. The temporary
 operator identity remains a demonstrator boundary rather than authentication.
 
+### Secure OT control simulation
+
+DepotFlux includes a deliberately non-transmitting OT integration slice. After
+a successful schedule receives an immutable operator approval, a dedicated
+credential-protected API validates one interval against the frozen depot
+capacity, encodes its net site-power setpoint as a Modbus/TCP frame, and
+persists the evidence in the run timeline. It never opens a connection to a
+charger or PLC, so `direct_asset_control` remains false. See
+[`docs/OT_SECURITY_EXTENSION.md`](docs/OT_SECURITY_EXTENSION.md) for the threat
+boundary, safeguards, limitations, and evidence gate.
+
 ## Reproducing the revision (start here)
 
 The revision experiments run natively in Python through the `agentic_workflow` package; no orchestration server is involved. The n8n exports under `workflows/` are retained as an archive of the original submission's orchestration and are not part of the reproduction path.

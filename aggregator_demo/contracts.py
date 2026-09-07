@@ -165,6 +165,7 @@ class AuditEventResponse(StrictContract):
         "run_recovered",
         "run_completed",
         "decision_recorded",
+        "control_simulated",
     ]
     occurred_at: datetime
     actor: str
@@ -244,3 +245,41 @@ class CapabilityResponse(StrictContract):
     operating_boundary: Literal["human_approved_decision_support"]
     direct_asset_control: Literal[False] = False
     run_statuses: list[RunStatus]
+
+
+class ControlSimulationCreateRequest(StrictContract):
+    interval_index: int = Field(ge=1)
+
+
+class ControlPolicyCheckResponse(StrictContract):
+    code: str = Field(min_length=1, max_length=64)
+    label: str = Field(min_length=1, max_length=128)
+    passed: Literal[True] = True
+    detail: str = Field(min_length=1, max_length=500)
+
+
+class ControlPolicyRejectionResponse(StrictContract):
+    code: Literal["control_policy_rejected"] = "control_policy_rejected"
+    message: str
+    failed_check: str = Field(min_length=1, max_length=64)
+
+
+class ControlSimulationResponse(StrictContract):
+    id: UUID
+    run_id: UUID
+    interval_index: int = Field(ge=1)
+    setpoint_kw: float
+    unit_id: int = Field(ge=1, le=247)
+    register_address: int = Field(ge=0, le=65535)
+    register_scale_kw: float = Field(gt=0)
+    modbus_frame_hex: str = Field(pattern=r"^[0-9a-f]+$")
+    result_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    policy_version: Literal["ot-policy-v1"] = "ot-policy-v1"
+    policy_checks: list[ControlPolicyCheckResponse]
+    simulated_only: Literal[True] = True
+    requested_by: str
+    created_at: datetime
+
+
+class ControlSimulationListResponse(StrictContract):
+    items: list[ControlSimulationResponse]

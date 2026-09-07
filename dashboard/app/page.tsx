@@ -114,6 +114,38 @@ type Approval = {
   created_at: string;
 };
 
+type ControlPolicyCheck = {
+  code: string;
+  label: string;
+  passed: true;
+  detail: string;
+};
+
+type ControlSimulation = {
+  id: string;
+  run_id: string;
+  interval_index: number;
+  setpoint_kw: number;
+  unit_id: number;
+  register_address: number;
+  register_scale_kw: number;
+  modbus_frame_hex: string;
+  result_sha256: string;
+  policy_version: 'ot-policy-v1';
+  policy_checks: ControlPolicyCheck[];
+  simulated_only: true;
+  requested_by: string;
+  created_at: string;
+};
+
+type ControlPolicyRejection = {
+  code: 'control_policy_rejected';
+  message: string;
+  failed_check: string;
+  interval_index: number;
+  run_id: string;
+};
+
 type AuditEvent = {
   event_type: string;
   occurred_at: string;
@@ -192,6 +224,7 @@ const TERMINAL_STATUSES = new Set([
 const navigation = [
   { label: 'Operations', icon: CircleGauge, active: true },
   { label: 'Disruption desk', icon: AlertTriangle },
+  { label: 'OT security', icon: ShieldCheck },
   { label: 'Run queue', icon: Waypoints },
   { label: 'Data sets', icon: Database },
   { label: 'Audit', icon: FileCheck2 },
@@ -232,6 +265,10 @@ function formatTimestamp(value: string) {
   }).format(new Date(value));
 }
 
+function formatModbusFrame(value: string) {
+  return value.match(/.{1,2}/g)?.join(' ') ?? value;
+}
+
 export default function Home() {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [inputs, setInputs] = useState<DemoInput[]>([]);
@@ -241,6 +278,7 @@ export default function Home() {
   const [selectedRunId, setSelectedRunId] = useState('');
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [approval, setApproval] = useState<Approval | null>(null);
+  const [knownApprovals, setKnownApprovals] = useState<Record<string, Approval | null>>({});
   const [notice, setNotice] = useState<OperationalNotice | null>(null);
   const [noticeScenario, setNoticeScenario] = useState<NoticeScenario>('combined_disruption');
   const [failureDrill, setFailureDrill] = useState<FailureDrillType>('infeasible');
@@ -252,6 +290,11 @@ export default function Home() {
   const [simulating, setSimulating] = useState(false);
   const [drilling, setDrilling] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [controlKey, setControlKey] = useState('');
+  const [controlInterval, setControlInterval] = useState('1');
+  const [controlRecords, setControlRecords] = useState<ControlSimulation[]>([]);
+  const [controlRejection, setControlRejection] = useState<ControlPolicyRejection | null>(null);
+  const [dispatching, setDispatching] = useState<'accepted' | 'rejected' | null>(null);
   const [message, setMessage] = useState('');
 
   const selectedInput = useMemo(
@@ -273,6 +316,31 @@ export default function Home() {
     }));
   }, [runResult]);
   const validationPassed = runResult?.result?.validation?.passed === true;
+  const approvedRuns = useMemo(
+    () => runs.filter(
+      (run) => run.status === 'succeeded' && knownApprovals[run.id]?.decision === 'approved',
+    ),
+    [knownApprovals, runs],
+  );
+  const controlIntervals = useMemo(
+    () => (runResult?.result?.w_buy ?? []).map((_, index) => index + 1),
+    [runResult],
+  );
+  const controlEligible =
+    selectedRun?.status === 'succeeded'
+    && approval?.decision === 'approved'
+    && validationPassed;
+  const selectedRunControlRecords = controlRecords.filter(
+    (record) => record.run_id === selectedRunId,
+  );
+  const selectedControlRecord =
+    selectedRunControlRecords.find(
+      (record) => record.interval_index === Number(controlInterval),
+    )
+    ?? selectedRunControlRecords[selectedRunControlRecords.length - 1]
+    ?? null;
+  const selectedControlRejection =
+    controlRejection?.run_id === selectedRunId ? controlRejection : null;
   const refreshWorkspace = useCallback(async () => {
     try {
       const [healthResponse, inputResponse, runResponse] = await Promise.all([
@@ -285,8 +353,20 @@ export default function Home() {
       }
       const inputBody = (await inputResponse.json()) as { items: DemoInput[] };
       const runBody = (await runResponse.json()) as { items: Run[] };
+      const approvalEntries = await Promise.all(
+        runBody.items.map(async (run): Promise<[string, Approval | null]> => {
+          if (run.status !== 'succeeded') return [run.id, null];
+          try {
+            const response = await fetch(`${API_BASE}/api/v1/runs/${run.id}/approval`);
+            return [run.id, response.ok ? ((await response.json()) as Approval) : null];
+          } catch {
+            return [run.id, null];
+          }
+        }),
+      );
       setInputs(inputBody.items);
       setRuns(runBody.items);
+      setKnownApprovals(Object.fromEntries(approvalEntries));
       setSelectedReference((current) => current || inputBody.items[0]?.reference || '');
       setSelectedRunId((current) => current || runBody.items[0]?.id || '');
       setConnected(true);
@@ -329,8 +409,12 @@ export default function Home() {
           fetch(`${API_BASE}/api/v1/runs/${runId}/result`),
           fetch(`${API_BASE}/api/v1/runs/${runId}/approval`),
         ]);
+        const loadedApproval = approvalResponse.ok
+          ? ((await approvalResponse.json()) as Approval)
+          : null;
         setRunResult(resultResponse.ok ? ((await resultResponse.json()) as RunResult) : null);
-        setApproval(approvalResponse.ok ? ((await approvalResponse.json()) as Approval) : null);
+        setApproval(loadedApproval);
+        setKnownApprovals((current) => ({ ...current, [runId]: loadedApproval }));
       } else {
         setRunResult(null);
         setApproval(null);
@@ -537,6 +621,73 @@ export default function Home() {
       setMessage(error instanceof Error ? error.message : 'Cancellation failed.');
     } finally {
       setCancelling(false);
+    }
+  }
+
+  async function simulateControlCommand(expectRejection: boolean) {
+    if (!selectedRunId || !controlEligible || !controlKey || !controlIntervals.length) return;
+    const intervalIndex = expectRejection
+      ? controlIntervals.length + 1
+      : Number(controlInterval);
+    setDispatching(expectRejection ? 'rejected' : 'accepted');
+    setControlRejection(null);
+    setMessage('');
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/v1/runs/${selectedRunId}/control-simulations`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Control-Key': controlKey,
+            'X-Operator-ID': 'ot-supervisor-demo',
+          },
+          body: JSON.stringify({ interval_index: intervalIndex }),
+        },
+      );
+      const body = (await response.json()) as ControlSimulation | ControlPolicyRejection | { message?: string };
+      if (expectRejection) {
+        if (response.status !== 409) {
+          throw new Error(
+            response.ok
+              ? 'The negative test was unexpectedly accepted.'
+              : ('message' in body ? body.message : undefined) ?? 'The negative test failed unexpectedly.',
+          );
+        }
+        const rejected = body as ControlPolicyRejection;
+        setControlRejection({
+          ...rejected,
+          interval_index: intervalIndex,
+          run_id: selectedRunId,
+        });
+        setMessage(`Policy correctly rejected interval ${intervalIndex}; no frame was generated.`);
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(('message' in body ? body.message : undefined) ?? 'Control simulation failed.');
+      }
+      const created = body as ControlSimulation;
+      const listResponse = await fetch(
+        `${API_BASE}/api/v1/runs/${selectedRunId}/control-simulations`,
+        { headers: { 'X-Control-Key': controlKey } },
+      );
+      if (listResponse.ok) {
+        const list = (await listResponse.json()) as { items: ControlSimulation[] };
+        setControlRecords(list.items);
+      } else {
+        setControlRecords((current) => [
+          ...current.filter((item) => item.id !== created.id),
+          created,
+        ]);
+      }
+      setMessage(
+        `Safe simulation recorded for interval ${created.interval_index}; the frame was not transmitted.`,
+      );
+      await loadRun(selectedRunId);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Control simulation failed.');
+    } finally {
+      setDispatching(null);
     }
   }
 
@@ -944,6 +1095,175 @@ export default function Home() {
                 {approval?.decision === 'approved'
                   ? `Baseline RUN-${shortRunId(selectedRunId)} is approved and eligible for replanning.`
                   : 'Select and approve a successful candidate to establish the operating baseline.'}
+              </div>
+            </Card>
+
+            <Card className="overflow-hidden border-cyan-300/20 bg-gradient-to-br from-cyan-300/[0.065] via-card/90 to-card/80 shadow-2xl shadow-black/20">
+              <CardHeader className="border-b border-white/8 pb-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="grid size-10 shrink-0 place-items-center rounded-lg border border-cyan-300/20 bg-cyan-300/10">
+                      <ShieldCheck className="size-5 text-cyan-300" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-300">OT security evidence</p>
+                      <CardTitle className="mt-1 text-lg">Secure dispatch simulation</CardTitle>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="border-emerald-300/20 text-emerald-200">
+                    No network transmission
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="grid gap-6 pt-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+                <div className="space-y-4">
+                  <div className="grid gap-2 text-sm font-medium">
+                    <label htmlFor="control-run">Approved run</label>
+                    <Select
+                      value={approvedRuns.some((run) => run.id === selectedRunId) ? selectedRunId : ''}
+                      onValueChange={(value) => {
+                        if (value) setSelectedRunId(value);
+                      }}
+                    >
+                      <SelectTrigger id="control-run" className="w-full border-white/10 bg-background/60">
+                        <SelectValue placeholder="Select an approved run" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {approvedRuns.map((run) => (
+                          <SelectItem key={run.id} value={run.id}>
+                            RUN-{shortRunId(run.id)} · {displayStatus(run.run_type)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2 text-sm font-medium">
+                    <label htmlFor="control-interval">Schedule interval</label>
+                    <Select
+                      value={controlInterval}
+                      onValueChange={(value) => {
+                        if (value) setControlInterval(value);
+                      }}
+                      disabled={!controlEligible || !controlIntervals.length}
+                    >
+                      <SelectTrigger id="control-interval" className="w-full border-white/10 bg-background/60">
+                        <SelectValue placeholder="Select an interval" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {controlIntervals.map((interval) => (
+                          <SelectItem key={interval} value={String(interval)}>
+                            Interval {interval} · {String(Math.floor(((interval - 1) * 30) / 60)).padStart(2, '0')}:{(interval - 1) % 2 ? '30' : '00'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2 text-sm font-medium">
+                    <label htmlFor="control-key">Session-only control key</label>
+                    <input
+                      id="control-key"
+                      type="password"
+                      autoComplete="off"
+                      value={controlKey}
+                      onChange={(event) => setControlKey(event.target.value)}
+                      placeholder="Enter the locally configured key"
+                      className="h-9 w-full rounded-lg border border-white/10 bg-background/60 px-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-300/15"
+                    />
+                    <p className="text-xs font-normal leading-5 text-muted-foreground">
+                      Kept only in this page session. It is never stored in the dashboard or audit record.
+                    </p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Button
+                      disabled={!controlEligible || !controlKey || dispatching !== null}
+                      onClick={() => void simulateControlCommand(false)}
+                    >
+                      <ShieldCheck className="size-4" />
+                      {dispatching === 'accepted' ? 'Evaluating…' : 'Generate safe frame'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={!controlEligible || !controlKey || dispatching !== null}
+                      className="border-rose-300/25 text-rose-100 hover:bg-rose-300/10"
+                      onClick={() => void simulateControlCommand(true)}
+                    >
+                      <AlertTriangle className="size-4" />
+                      {dispatching === 'rejected' ? 'Testing…' : 'Demonstrate rejection'}
+                    </Button>
+                  </div>
+                  <p className="rounded-lg border border-white/8 bg-black/10 px-3 py-2.5 text-xs leading-5 text-slate-400">
+                    The rejection test requests interval {controlIntervals.length ? controlIntervals.length + 1 : '—'}, outside the optimized horizon. The API must refuse it before encoding.
+                  </p>
+                </div>
+
+                <div className="min-w-0 rounded-xl border border-white/8 bg-[#07101a]/75 p-4">
+                  {selectedControlRejection ? (
+                    <div className="rounded-lg border border-rose-300/20 bg-rose-300/[0.055] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-rose-100">Command rejected before encoding</p>
+                        <Badge variant="outline" className="border-rose-300/25 text-rose-200">BLOCKED</Badge>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-slate-300">{selectedControlRejection.message}</p>
+                      <div className="mt-3 grid gap-2 font-mono text-xs text-rose-200/75 sm:grid-cols-2">
+                        <span>CHECK {selectedControlRejection.failed_check}</span>
+                        <span>INTERVAL {selectedControlRejection.interval_index}</span>
+                      </div>
+                    </div>
+                  ) : selectedControlRecord ? (
+                    <div className="space-y-5">
+                      <div className="flex flex-wrap items-end justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.11em] text-muted-foreground">Encoded setpoint</p>
+                          <p className="mt-1 font-mono text-3xl font-semibold text-cyan-200">
+                            {formatNumber(selectedControlRecord.setpoint_kw, 1)} <span className="text-base text-muted-foreground">kW</span>
+                          </p>
+                        </div>
+                        <p className="font-mono text-xs text-slate-500">{selectedControlRecord.policy_version}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.11em] text-muted-foreground">Policy checks</p>
+                        <ul className="mt-3 space-y-3">
+                          {selectedControlRecord.policy_checks.map((check) => (
+                            <li key={check.code} className="flex gap-3">
+                              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-300" />
+                              <div>
+                                <p className="text-sm font-medium text-slate-200">{check.label}</p>
+                                <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{check.detail}</p>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.11em] text-muted-foreground">Generated Modbus/TCP frame</p>
+                          <Badge variant="outline" className="border-white/10 text-slate-400">SIMULATED</Badge>
+                        </div>
+                        <code className="mt-3 block break-all rounded-lg border border-cyan-300/10 bg-cyan-300/[0.04] p-3 font-mono text-sm leading-6 text-cyan-100">
+                          {formatModbusFrame(selectedControlRecord.modbus_frame_hex)}
+                        </code>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Unit {selectedControlRecord.unit_id} · register {selectedControlRecord.register_address} · {selectedControlRecord.register_scale_kw} kW/count
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid min-h-72 place-items-center text-center">
+                      <div className="max-w-sm">
+                        <FileCheck2 className="mx-auto size-7 text-slate-500" />
+                        <p className="mt-3 text-sm font-medium">No control evidence selected</p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          Select an approved run, choose an interval, and evaluate it against the OT policy gate.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+              <div className="border-t border-white/8 px-5 py-3 text-xs text-muted-foreground">
+                {controlEligible
+                  ? `RUN-${shortRunId(selectedRunId)} is approved, hash-bound, and eligible for safe simulation.`
+                  : 'Only a successful, validated, operator-approved run can reach the encoder.'}
               </div>
             </Card>
 

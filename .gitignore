@@ -126,3 +126,8 @@ results/revision/multiday_nominal_selfish_900s_v1/*
 
 # Legacy generated-data folder from earlier versions of the repository
 Files/
+
+# Local demonstrator scratch space and generated exports
+/.tmp/
+/tmp/
+/outputs/

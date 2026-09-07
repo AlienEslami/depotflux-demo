@@ -15,7 +15,13 @@ from .contracts import (
     RunStatus,
     RunTimelineResponse,
 )
-from .database import ApprovalRow, OperationalNoticeRow, RunRow, utc_now
+from .database import (
+    ApprovalRow,
+    ControlSimulationRow,
+    OperationalNoticeRow,
+    RunRow,
+    utc_now,
+)
 from .run_repository import RunNotFoundError
 
 
@@ -171,6 +177,23 @@ class ApprovalRepository:
                     occurred_at=_as_utc(approval.created_at),
                     actor=approval.decided_by,
                     detail=f"Candidate {approval.decision} by the operator.",
+                )
+            )
+        control_simulations = self.session.scalars(
+            select(ControlSimulationRow).where(
+                ControlSimulationRow.run_id == str(run_id)
+            )
+        ).all()
+        for simulation in control_simulations:
+            events.append(
+                AuditEventResponse(
+                    event_type="control_simulated",
+                    occurred_at=_as_utc(simulation.created_at),
+                    actor=simulation.requested_by,
+                    detail=(
+                        "Simulated Modbus site-power command recorded for "
+                        f"interval {simulation.interval_index}; no frame transmitted."
+                    ),
                 )
             )
         events.sort(key=lambda event: event.occurred_at)
