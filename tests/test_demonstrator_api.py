@@ -11,7 +11,7 @@ def test_liveness_contract():
 
     assert response.status_code == 200
     assert response.json() == {
-        "service": "agentic-aggregator-api",
+        "service": "depotflux-api",
         "status": "ok",
         "version": "0.1.0",
     }

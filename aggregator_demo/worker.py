@@ -9,10 +9,12 @@ from pathlib import Path
 from .contracts import AgentBackend, OptimizationMode, RunStatus, RunType
 from .database import create_database_engine, create_session_factory, database_url_from_environment
 from .input_registry import DemoInputError, DemoInputRegistry
+from .notice_repository import NoticeNotFoundError, NoticeRepository
 from .optimizer_service import (
     OptimizationInfeasibleError,
     OptimizationResultError,
     optimize_day_ahead,
+    optimize_real_time,
 )
 from .run_repository import RunRepository
 
@@ -37,37 +39,62 @@ def execute_one(
             if claimed is None:
                 return False
             try:
-                if claimed.run_type != RunType.DAY_AHEAD:
-                    raise NotImplementedError(
-                        "real-time runs are not connected to the demonstrator worker yet"
-                    )
                 if claimed.optimization_mode != OptimizationMode.SELFISH:
                     raise NotImplementedError(
-                        "only selfish day-ahead optimization is connected to the worker"
+                        "only selfish optimization is connected to the worker"
                     )
                 if claimed.agent_backend != AgentBackend.RULE:
                     raise NotImplementedError(
                         "only the deterministic rule backend is connected to the worker"
                     )
-                if claimed.scenario_ids not in ([], ["nominal"]):
-                    raise NotImplementedError(
-                        "only the nominal day-ahead scenario is connected to the worker"
-                    )
                 input_data = registry.load(
                     claimed.input_reference,
                     claimed.input_sha256,
                 )
-                result = optimize_day_ahead(
-                    input_data,
-                    optimization_mode=claimed.optimization_mode.value,
-                    v2g_enabled=claimed.v2g_enabled,
-                )
+                if claimed.run_type == RunType.DAY_AHEAD:
+                    if claimed.scenario_ids not in ([], ["nominal"]):
+                        raise NotImplementedError(
+                            "only the nominal day-ahead scenario is connected to the worker"
+                        )
+                    result = optimize_day_ahead(
+                        input_data,
+                        optimization_mode=claimed.optimization_mode.value,
+                        v2g_enabled=claimed.v2g_enabled,
+                    )
+                elif claimed.run_type == RunType.REAL_TIME:
+                    notice = NoticeRepository(session).get_by_candidate(claimed.id)
+                    baseline = repository.result(notice.baseline_run_id)
+                    if baseline.result is None or baseline.result_sha256 is None:
+                        raise OptimizationResultError(
+                            "approved baseline result is unavailable"
+                        )
+                    result = optimize_real_time(
+                        input_data,
+                        structured_facts=notice.structured_facts,
+                        baseline_result=baseline.result,
+                        baseline_result_sha256=baseline.result_sha256,
+                        baseline_run_id=str(notice.baseline_run_id),
+                        notice_id=str(notice.id),
+                        optimization_mode=claimed.optimization_mode.value,
+                        v2g_enabled=claimed.v2g_enabled,
+                    )
+                else:
+                    raise NotImplementedError(
+                        f"run type {claimed.run_type.value} is unsupported"
+                    )
                 repository.complete(claimed.id, result)
             except DemoInputError as exc:
                 repository.fail(
                     claimed.id,
                     status=RunStatus.FAILED,
                     failure_code=exc.code,
+                    failure_message=str(exc),
+                )
+            except NoticeNotFoundError as exc:
+                repository.fail(
+                    claimed.id,
+                    status=RunStatus.FAILED,
+                    failure_code="notice_not_found",
                     failure_message=str(exc),
                 )
             except OptimizationInfeasibleError as exc:

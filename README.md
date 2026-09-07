@@ -4,10 +4,12 @@ This repository contains the code, frozen experiment protocols, provenance manif
 
 ## Industry demonstrator
 
-Productization work is being developed as a separate, human-approved decision-
-support surface around the research core. The scope, operating boundary,
+**DepotFlux** is being developed as a separate, human-approved electric-fleet
+energy operations surface around the research core. The scope, operating boundary,
 milestones, acceptance gates, and staffing assumptions are defined in
 [`docs/INDUSTRY_DEMONSTRATOR_WORK_PACKAGE.md`](docs/INDUSTRY_DEMONSTRATOR_WORK_PACKAGE.md).
+The active operational-replanning milestone is tracked in
+[`docs/OPERATIONAL_REPLANNING_WORK_PACKAGE.md`](docs/OPERATIONAL_REPLANNING_WORK_PACKAGE.md).
 The demonstrator and frozen dependency baseline require Python 3.12 or newer.
 
 The initial versioned API surface can be started after installation with:
@@ -43,8 +45,10 @@ npm run dev
 ```
 
 Open `http://localhost:3000`. The dashboard submits real registered inputs,
-polls durable run state, charts the solved site-power schedule, and records one
-immutable approve/reject decision tied to the result hash. The temporary
+polls durable run state, charts the solved site-power schedule, preserves frozen
+operational notices, queues remaining-horizon replanning, compares the candidate
+with an approved baseline, and records one immutable approve/reject decision tied
+to the result hash. The temporary
 operator identity remains a demonstrator boundary rather than authentication.
 
 ## Reproducing the revision (start here)

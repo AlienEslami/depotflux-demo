@@ -24,6 +24,9 @@ from .contracts import (
     DemoInputListResponse,
     ErrorResponse,
     HealthResponse,
+    NoticeCreateRequest,
+    NoticeListResponse,
+    NoticeResponse,
     RunCreateRequest,
     RunListResponse,
     RunResponse,
@@ -41,6 +44,11 @@ from .input_registry import (
     DemoInputIntegrityError,
     DemoInputNotFoundError,
     DemoInputRegistry,
+)
+from .notice_repository import (
+    NoticeConflictError,
+    NoticeNotFoundError,
+    NoticeRepository,
 )
 from .run_repository import RunConflictError, RunNotFoundError, RunRepository
 
@@ -73,7 +81,7 @@ def create_app(
         create_schema(engine)
 
     application = FastAPI(
-        title="Agentic Aggregator Industry Demonstrator",
+        title="DepotFlux Industry Demonstrator",
         description=(
             "Human-approved decision support for electric-fleet charging and "
             "real-time replanning. This API does not control physical assets."
@@ -88,7 +96,8 @@ def create_app(
         for origin in os.environ.get(
             "DEMO_ALLOWED_ORIGINS",
             "http://localhost:3000,http://127.0.0.1:3000,"
-            "https://agentic-aggregator-ops.soft-ape-5410.chatgpt.site",
+            "https://agentic-aggregator-ops.soft-ape-5410.chatgpt.site,"
+            "https://depotflux-ops.soft-ape-5410.chatgpt.site",
         ).split(",")
         if origin.strip()
     ]
@@ -109,7 +118,7 @@ def create_app(
     )
     def liveness() -> HealthResponse:
         return HealthResponse(
-            service="agentic-aggregator-api",
+            service="depotflux-api",
             status="ok",
             version=__version__,
         )
@@ -125,14 +134,14 @@ def create_app(
         try:
             ping_database(application.state.database_engine)
             return HealthResponse(
-                service="agentic-aggregator-api",
+                service="depotflux-api",
                 status="ok",
                 version=__version__,
             )
         except SQLAlchemyError:
             response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
             return HealthResponse(
-                service="agentic-aggregator-api",
+                service="depotflux-api",
                 status="unavailable",
                 version=__version__,
                 detail="database unavailable",
@@ -344,6 +353,107 @@ def create_app(
                 status_code=status.HTTP_404_NOT_FOUND,
                 content=ErrorResponse(
                     code="run_not_found",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+
+    @application.post(
+        "/api/v1/notices/simulate",
+        response_model=NoticeResponse,
+        status_code=status.HTTP_202_ACCEPTED,
+        tags=["notices"],
+        summary="Create a frozen operational notice and queue a replanning run",
+        responses={
+            404: {"model": ErrorResponse},
+            409: {"model": ErrorResponse},
+        },
+    )
+    def simulate_notice(
+        request: NoticeCreateRequest,
+        session: SessionDependency,
+        idempotency_key: Annotated[
+            str | None,
+            Header(alias="Idempotency-Key", min_length=1, max_length=120),
+        ] = None,
+        operator_id: Annotated[
+            str,
+            Header(alias="X-Operator-ID", min_length=1, max_length=128),
+        ] = "demo-operator",
+    ):
+        try:
+            return NoticeRepository(session).create_simulated(
+                request,
+                created_by=operator_id,
+                idempotency_key=idempotency_key,
+            )
+        except RunNotFoundError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content=ErrorResponse(
+                    code="baseline_run_not_found",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+        except (NoticeConflictError, RunConflictError) as exc:
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                content=ErrorResponse(
+                    code="notice_conflict",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+
+    @application.get(
+        "/api/v1/notices",
+        response_model=NoticeListResponse,
+        tags=["notices"],
+        summary="List simulated operational notices",
+    )
+    def list_notices(
+        session: SessionDependency,
+        limit: Annotated[int, Query(ge=1, le=100)] = 25,
+        offset: Annotated[int, Query(ge=0)] = 0,
+    ) -> NoticeListResponse:
+        return NoticeListResponse(
+            items=NoticeRepository(session).list(limit=limit, offset=offset),
+            limit=limit,
+            offset=offset,
+        )
+
+    @application.get(
+        "/api/v1/notices/{notice_id}",
+        response_model=NoticeResponse,
+        tags=["notices"],
+        summary="Get a preserved operational notice and interpretation",
+        responses={404: {"model": ErrorResponse}},
+    )
+    def get_notice(notice_id: UUID, session: SessionDependency):
+        try:
+            return NoticeRepository(session).get(notice_id)
+        except NoticeNotFoundError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content=ErrorResponse(
+                    code="notice_not_found",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+
+    @application.get(
+        "/api/v1/runs/{run_id}/notice",
+        response_model=NoticeResponse,
+        tags=["notices"],
+        summary="Get the operational notice linked to a replanning run",
+        responses={404: {"model": ErrorResponse}},
+    )
+    def get_run_notice(run_id: UUID, session: SessionDependency):
+        try:
+            return NoticeRepository(session).get_by_candidate(run_id)
+        except NoticeNotFoundError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content=ErrorResponse(
+                    code="notice_not_found",
                     message=str(exc),
                 ).model_dump(mode="json"),
             )

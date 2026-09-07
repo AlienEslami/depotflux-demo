@@ -1,9 +1,11 @@
-# Operator dashboard
+# DepotFlux Operations
 
-This Vinext dashboard is the human approval surface for the industry
+DepotFlux Operations is the human approval surface for the industry
 demonstrator. It connects to the FastAPI service, submits registered frozen
-inputs, polls durable run state, displays validated optimization results, and
-records one immutable approve/reject decision per successful candidate.
+inputs, polls durable run state, displays validated optimization results,
+preserves simulated disruption notices, compares remaining-horizon candidates
+with approved baselines, and records one immutable approve/reject decision per
+successful candidate.
 
 The interface does not send commands to buses, chargers, or other physical
 assets.

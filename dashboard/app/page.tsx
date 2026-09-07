@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity,
+  AlertTriangle,
+  ArrowRightLeft,
   BatteryCharging,
   BusFront,
   CheckCircle2,
@@ -61,7 +63,9 @@ type DemoInput = {
 type Run = {
   id: string;
   status: string;
+  run_type: 'day_ahead' | 'real_time';
   input_reference: string;
+  scenario_ids: string[];
   created_at: string;
   updated_at: string;
   started_at: string | null;
@@ -78,12 +82,22 @@ type RunResult = {
   result: {
     validation?: { passed?: boolean; checks?: string[] };
     optimized_steps?: number;
+    current_timestep?: number;
     pto_daily_cost?: number;
     aggregator_revenue?: number;
     total_kwh_bought?: number;
     total_kwh_sold?: number;
     w_buy?: number[];
     w_sell?: number[];
+    service_unmet_count?: number;
+    soc_violation_count?: number;
+    comparison?: {
+      baseline_run_id: string;
+      changed_intervals: number;
+      baseline: ComparisonMetrics;
+      candidate: ComparisonMetrics;
+      delta: ComparisonMetrics;
+    };
   } | null;
   failure_code: string | null;
   failure_message: string | null;
@@ -103,6 +117,41 @@ type AuditEvent = {
   occurred_at: string;
   actor: string;
   detail: string;
+};
+
+type ComparisonMetrics = {
+  remaining_cost: number;
+  grid_purchase_kwh: number;
+  v2g_export_kwh: number;
+  peak_import_kwh: number;
+};
+
+type NoticeScenario = 'late_return' | 'charger_derating' | 'combined_disruption';
+
+type OperationalNotice = {
+  id: string;
+  baseline_run_id: string;
+  candidate_run_id: string;
+  scenario: NoticeScenario;
+  source: 'simulator';
+  raw_notice: string;
+  structured_facts: {
+    observed_at_timestep?: number;
+    late_returns?: Array<{ bus_id: number; delay_minutes: number }>;
+    charger_deratings?: Array<{
+      charger_id: number;
+      from_kw: number;
+      to_kw: number;
+      start_timestep: number;
+      end_timestep: number;
+    }>;
+  };
+  interpretation_backend: 'rule';
+  confidence: number;
+  replan_recommended: boolean;
+  rationale: string;
+  created_by: string;
+  created_at: string;
 };
 
 type WebMcpDocument = Document & {
@@ -134,6 +183,7 @@ const TERMINAL_STATUSES = new Set([
 
 const navigation = [
   { label: 'Operations', icon: CircleGauge, active: true },
+  { label: 'Disruption desk', icon: AlertTriangle },
   { label: 'Run queue', icon: Waypoints },
   { label: 'Data sets', icon: Database },
   { label: 'Audit', icon: FileCheck2 },
@@ -173,11 +223,14 @@ export default function Home() {
   const [selectedRunId, setSelectedRunId] = useState('');
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [approval, setApproval] = useState<Approval | null>(null);
+  const [notice, setNotice] = useState<OperationalNotice | null>(null);
+  const [noticeScenario, setNoticeScenario] = useState<NoticeScenario>('combined_disruption');
   const [timeline, setTimeline] = useState<AuditEvent[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [decisionOpen, setDecisionOpen] = useState(false);
   const [decisionNote, setDecisionNote] = useState('');
   const [deciding, setDeciding] = useState(false);
+  const [simulating, setSimulating] = useState(false);
   const [message, setMessage] = useState('');
 
   const selectedInput = useMemo(
@@ -191,8 +244,9 @@ export default function Home() {
   const chartData = useMemo(() => {
     const buy = runResult?.result?.w_buy ?? [];
     const sell = runResult?.result?.w_sell ?? [];
+    const startStep = runResult?.result?.current_timestep ?? 1;
     return buy.map((value, index) => ({
-      time: `${String(Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`,
+      time: `${String(Math.floor(((startStep - 1 + index) * 30) / 60)).padStart(2, '0')}:${(startStep - 1 + index) % 2 ? '30' : '00'}`,
       charging: Number(value.toFixed(2)),
       v2g: Number((sell[index] ?? 0).toFixed(2)),
     }));
@@ -242,6 +296,12 @@ export default function Home() {
         const body = (await timelineResponse.json()) as { events: AuditEvent[] };
         setTimeline(body.events);
       }
+      const noticeResponse = await fetch(`${API_BASE}/api/v1/runs/${runId}/notice`);
+      setNotice(
+        noticeResponse.ok
+          ? ((await noticeResponse.json()) as OperationalNotice)
+          : null,
+      );
 
       if (TERMINAL_STATUSES.has(run.status)) {
         const [resultResponse, approvalResponse] = await Promise.all([
@@ -297,6 +357,35 @@ export default function Home() {
     return created;
   }, []);
 
+  const queueReplan = useCallback(async (
+    baselineRunId: string,
+    scenario: NoticeScenario,
+  ) => {
+    const response = await fetch(`${API_BASE}/api/v1/notices/simulate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': crypto.randomUUID(),
+        'X-Operator-ID': 'demonstrator-operator',
+      },
+      body: JSON.stringify({ baseline_run_id: baselineRunId, scenario }),
+    });
+    if (!response.ok) {
+      const error = (await response.json()) as { message?: string };
+      throw new Error(error.message ?? 'The operational notice could not be submitted.');
+    }
+    const createdNotice = (await response.json()) as OperationalNotice;
+    const runResponse = await fetch(
+      `${API_BASE}/api/v1/runs/${createdNotice.candidate_run_id}`,
+    );
+    if (!runResponse.ok) throw new Error('The replanning run could not be loaded.');
+    const candidate = (await runResponse.json()) as Run;
+    setNotice(createdNotice);
+    setRuns((current) => [candidate, ...current.filter((run) => run.id !== candidate.id)]);
+    setSelectedRunId(candidate.id);
+    return createdNotice;
+  }, []);
+
   async function submitRun() {
     if (!selectedInput) return;
     setSubmitting(true);
@@ -340,6 +429,22 @@ export default function Home() {
     }
   }
 
+  async function simulateDisruption() {
+    if (!selectedRunId || approval?.decision !== 'approved') return;
+    setSimulating(true);
+    setMessage('');
+    try {
+      const createdNotice = await queueReplan(selectedRunId, noticeScenario);
+      setMessage(
+        `Operational notice preserved; run ${shortRunId(createdNotice.candidate_run_id)} entered the queue.`,
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Simulation failed.');
+    } finally {
+      setSimulating(false);
+    }
+  }
+
   useEffect(() => {
     const context = (document as WebMcpDocument).modelContext;
     if (!context?.registerTool) return;
@@ -377,6 +482,52 @@ export default function Home() {
     return () => lifecycle.abort();
   }, [inputs, queueRun]);
 
+  useEffect(() => {
+    const context = (document as WebMcpDocument).modelContext;
+    if (!context?.registerTool) return;
+    const lifecycle = new AbortController();
+    void Promise.resolve(
+      context.registerTool(
+        {
+          name: 'simulate_operational_notice',
+          title: 'Simulate operational notice',
+          description: 'Preserve a frozen depot disruption and queue a remaining-horizon optimization from an approved baseline.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              baseline_run_id: { type: 'string' },
+              scenario: {
+                type: 'string',
+                enum: ['late_return', 'charger_derating', 'combined_disruption'],
+              },
+            },
+            required: ['baseline_run_id', 'scenario'],
+            additionalProperties: false,
+          },
+          annotations: { readOnlyHint: false, untrustedContentHint: false },
+          async execute(value) {
+            const input = value as { baseline_run_id?: unknown; scenario?: unknown };
+            const scenarios = new Set(['late_return', 'charger_derating', 'combined_disruption']);
+            if (typeof input.baseline_run_id !== 'string' || typeof input.scenario !== 'string' || !scenarios.has(input.scenario)) {
+              throw new Error('A baseline_run_id and supported scenario are required.');
+            }
+            const created = await queueReplan(
+              input.baseline_run_id,
+              input.scenario as NoticeScenario,
+            );
+            return {
+              notice_id: created.id,
+              candidate_run_id: created.candidate_run_id,
+              replan_recommended: created.replan_recommended,
+            };
+          },
+        },
+        { signal: lifecycle.signal },
+      ),
+    ).catch(() => undefined);
+    return () => lifecycle.abort();
+  }, [queueReplan]);
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 flex h-16 items-center border-b border-white/8 bg-background/92 px-4 backdrop-blur-xl lg:px-7">
@@ -388,8 +539,8 @@ export default function Home() {
             <Zap className="size-5" />
           </div>
           <div className="min-w-0">
-            <p className="truncate font-semibold tracking-[-0.02em]">Agentic Aggregator</p>
-            <p className="text-xs text-muted-foreground">Decision-support demonstrator</p>
+            <p className="truncate font-semibold tracking-[-0.02em]">DepotFlux</p>
+            <p className="text-xs text-muted-foreground">Electric fleet energy operations</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -443,8 +594,8 @@ export default function Home() {
           <section className="min-w-0 space-y-5">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p className="text-sm text-cyan-300">Depot A · Day-ahead desk</p>
-                <h1 className="mt-1 text-2xl font-semibold tracking-[-0.035em] sm:text-3xl">Prepare tomorrow’s charging plan</h1>
+                <p className="text-sm text-cyan-300">Depot A · Operations desk</p>
+                <h1 className="mt-1 text-2xl font-semibold tracking-[-0.035em] sm:text-3xl">Plan, respond, and approve</h1>
               </div>
               <p className="font-mono text-xs text-muted-foreground">48 × 30 MIN · RULE BACKEND</p>
             </div>
@@ -511,10 +662,135 @@ export default function Home() {
               </div>
             </Card>
 
+            <Card className="border-amber-300/15 bg-card/80 shadow-2xl shadow-black/15">
+              <CardHeader className="border-b border-white/8 pb-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-300">Operational replanning</p>
+                    <CardTitle className="mt-1 text-lg">Simulate a depot disruption</CardTitle>
+                  </div>
+                  <Badge variant="outline" className="border-amber-300/20 text-amber-200">
+                    Approved baseline required
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="grid gap-5 pt-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                <div className="grid gap-2 text-sm font-medium">
+                  <label htmlFor="notice-scenario">Frozen operational notice</label>
+                  <Select
+                    value={noticeScenario}
+                    onValueChange={(value) => {
+                      if (value) setNoticeScenario(value as NoticeScenario);
+                    }}
+                  >
+                    <SelectTrigger id="notice-scenario" className="w-full border-white/10 bg-background/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="late_return">Bus 1 · 30-minute late return</SelectItem>
+                      <SelectItem value="charger_derating">Charger 1 · temporary 150 kW limit</SelectItem>
+                      <SelectItem value="combined_disruption">Combined late return + charger derating</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs font-normal leading-5 text-muted-foreground">
+                    The simulator preserves the source notice, applies deterministic interpretation, and queues a real remaining-horizon solve.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="border-amber-300/25 text-amber-100 hover:bg-amber-300/10"
+                  disabled={!connected || approval?.decision !== 'approved' || simulating}
+                  onClick={simulateDisruption}
+                >
+                  <AlertTriangle className="size-4" />
+                  {simulating ? 'Submitting…' : 'Simulate and replan'}
+                </Button>
+              </CardContent>
+              <div className="border-t border-white/8 px-5 py-3 text-xs text-muted-foreground">
+                {approval?.decision === 'approved'
+                  ? `Baseline RUN-${shortRunId(selectedRunId)} is approved and eligible for replanning.`
+                  : 'Select and approve a successful candidate to establish the operating baseline.'}
+              </div>
+            </Card>
+
             {message ? (
               <output className="block rounded-lg border border-cyan-300/15 bg-cyan-300/5 px-4 py-3 text-sm text-cyan-100">
                 {message}
               </output>
+            ) : null}
+
+            {notice ? (
+              <Card className="border-amber-300/15 bg-gradient-to-br from-amber-300/[0.055] to-card/80">
+                <CardHeader className="border-b border-white/8 pb-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-300">Preserved source notice</p>
+                      <CardTitle className="mt-1 text-lg capitalize">{displayStatus(notice.scenario)}</CardTitle>
+                    </div>
+                    <Badge variant="outline" className="border-emerald-300/20 text-emerald-200">
+                      Rule confidence {Math.round(notice.confidence * 100)}%
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="grid gap-5 pt-5 lg:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.11em] text-muted-foreground">Original message</p>
+                    <blockquote className="mt-2 border-l-2 border-amber-300/35 pl-4 text-sm leading-6 text-slate-200">
+                      {notice.raw_notice}
+                    </blockquote>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.11em] text-muted-foreground">Decision rationale</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">{notice.rationale}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {(notice.structured_facts.late_returns ?? []).map((item) => (
+                        <Badge key={`bus-${item.bus_id}`} variant="outline" className="border-white/10 text-slate-300">
+                          Bus {item.bus_id} +{item.delay_minutes} min
+                        </Badge>
+                      ))}
+                      {(notice.structured_facts.charger_deratings ?? []).map((item) => (
+                        <Badge key={`charger-${item.charger_id}`} variant="outline" className="border-white/10 text-slate-300">
+                          Charger {item.charger_id} {item.from_kw}→{item.to_kw} kW
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {runResult?.result?.comparison ? (
+              <Card className="border-cyan-300/15 bg-card/80">
+                <CardHeader className="border-b border-white/8 pb-4">
+                  <div className="flex items-center gap-3">
+                    <ArrowRightLeft className="size-5 text-cyan-300" />
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Candidate versus approved baseline</p>
+                      <CardTitle className="mt-1 text-lg">
+                        {runResult.result.comparison.changed_intervals} intervals revised
+                      </CardTitle>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="grid gap-px overflow-hidden p-0 sm:grid-cols-4">
+                  {[
+                    ['Remaining cost', runResult.result.comparison.delta.remaining_cost, '$'],
+                    ['Grid purchase', runResult.result.comparison.delta.grid_purchase_kwh, ' kWh'],
+                    ['V2G export', runResult.result.comparison.delta.v2g_export_kwh, ' kWh'],
+                    ['Peak import', runResult.result.comparison.delta.peak_import_kwh, ' kWh'],
+                  ].map(([label, value, unit], index) => {
+                    const numericValue = value as number;
+                    return (
+                      <div key={label as string} className={`p-5 ${index ? 'border-t border-white/8 sm:border-l sm:border-t-0' : ''}`}>
+                        <p className="text-xs text-muted-foreground">{label as string} delta</p>
+                        <p className={`mt-2 font-mono text-lg font-semibold ${numericValue > 0 ? 'text-amber-200' : numericValue < 0 ? 'text-emerald-300' : 'text-slate-200'}`}>
+                          {unit === '$' ? `${numericValue >= 0 ? '+' : ''}$${formatNumber(numericValue, 2)}` : `${numericValue >= 0 ? '+' : ''}${formatNumber(numericValue, 1)}${unit as string}`}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
             ) : null}
 
             <Card className="border-white/10 bg-card/80">
@@ -544,7 +820,7 @@ export default function Home() {
                       >
                         <div className="min-w-0">
                           <p className="font-mono text-sm font-semibold">RUN-{shortRunId(run.id)}</p>
-                          <p className="truncate text-xs text-muted-foreground">{run.input_reference}</p>
+                          <p className="truncate text-xs capitalize text-muted-foreground">{displayStatus(run.run_type)} · {run.input_reference}</p>
                         </div>
                         <Badge
                           variant="outline"
@@ -648,7 +924,7 @@ export default function Home() {
                 {runResult?.result ? (
                   <div className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-white/8 bg-white/8">
                     {[
-                      ['PTO cost', `$${formatNumber(runResult.result.pto_daily_cost, 2)}`],
+                      [selectedRun?.run_type === 'real_time' ? 'Remaining cost' : 'PTO cost', `$${formatNumber(runResult.result.pto_daily_cost, 2)}`],
                       ['Aggregator value', `$${formatNumber(runResult.result.aggregator_revenue, 2)}`],
                       ['Grid purchase', `${formatNumber(runResult.result.total_kwh_bought)} kWh`],
                       ['V2G export', `${formatNumber(runResult.result.total_kwh_sold)} kWh`],

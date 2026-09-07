@@ -199,6 +199,7 @@ def test_initial_alembic_migration_builds_run_table(tmp_path: Path):
     inspector = inspect(migrated_app.state.database_engine)
     assert "optimization_runs" in inspector.get_table_names()
     assert "operator_approvals" in inspector.get_table_names()
+    assert "operational_notices" in inspector.get_table_names()
     columns = {column["name"] for column in inspector.get_columns("optimization_runs")}
     assert {
         "id",

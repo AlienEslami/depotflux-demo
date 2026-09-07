@@ -1,6 +1,6 @@
 # Industry Demonstrator Work Package
 
-## Agentic Aggregator: Electric-Fleet Decision Support
+## DepotFlux: Electric Fleet Energy Operations
 
 | Field | Definition |
 |---|---|
@@ -37,7 +37,7 @@ for a later shadow pilot.
 
 ## 2. Product statement
 
-> The Agentic Aggregator helps a depot operator create and revise an auditable
+> DepotFlux helps a depot operator create and revise an auditable
 > electric-fleet charging plan while protecting vehicle service, battery, site,
 > and operational constraints.
 

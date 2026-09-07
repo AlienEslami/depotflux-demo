@@ -1,3 +1,3 @@
-"""Industry demonstrator application for the Agentic Aggregator."""
+"""DepotFlux industry demonstrator built around the research workflow."""
 
 __version__ = "0.1.0"

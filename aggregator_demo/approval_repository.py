@@ -15,7 +15,7 @@ from .contracts import (
     RunStatus,
     RunTimelineResponse,
 )
-from .database import ApprovalRow, RunRow, utc_now
+from .database import ApprovalRow, OperationalNoticeRow, RunRow, utc_now
 from .run_repository import RunNotFoundError
 
 
@@ -114,6 +114,23 @@ class ApprovalRepository:
                 detail="Optimization run submitted to the durable queue.",
             )
         ]
+        notice = self.session.scalar(
+            select(OperationalNoticeRow).where(
+                OperationalNoticeRow.candidate_run_id == str(run_id)
+            )
+        )
+        if notice is not None:
+            events.append(
+                AuditEventResponse(
+                    event_type="notice_received",
+                    occurred_at=_as_utc(notice.created_at),
+                    actor=notice.created_by,
+                    detail=(
+                        f"Simulator notice received: "
+                        f"{notice.scenario.replace('_', ' ')}."
+                    ),
+                )
+            )
         if run.started_at is not None:
             events.append(
                 AuditEventResponse(

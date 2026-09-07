@@ -59,6 +59,14 @@ class ApprovalDecision(StrEnum):
     REJECTED = "rejected"
 
 
+class NoticeScenario(StrEnum):
+    """Frozen simulator events available in the industry demonstrator."""
+
+    LATE_RETURN = "late_return"
+    CHARGER_DERATING = "charger_derating"
+    COMBINED_DISRUPTION = "combined_disruption"
+
+
 class RunCreateRequest(StrictContract):
     run_type: RunType
     optimization_mode: OptimizationMode = OptimizationMode.SELFISH
@@ -141,6 +149,7 @@ class ApprovalResponse(StrictContract):
 
 class AuditEventResponse(StrictContract):
     event_type: Literal[
+        "notice_received",
         "run_submitted",
         "run_started",
         "run_completed",
@@ -154,6 +163,33 @@ class AuditEventResponse(StrictContract):
 class RunTimelineResponse(StrictContract):
     run_id: UUID
     events: list[AuditEventResponse]
+
+
+class NoticeCreateRequest(StrictContract):
+    baseline_run_id: UUID
+    scenario: NoticeScenario
+
+
+class NoticeResponse(StrictContract):
+    id: UUID
+    baseline_run_id: UUID
+    candidate_run_id: UUID
+    scenario: NoticeScenario
+    source: Literal["simulator"]
+    raw_notice: str
+    structured_facts: dict
+    interpretation_backend: Literal["rule"]
+    confidence: float = Field(ge=0, le=1)
+    replan_recommended: bool
+    rationale: str
+    created_by: str
+    created_at: datetime
+
+
+class NoticeListResponse(StrictContract):
+    items: list[NoticeResponse]
+    limit: int
+    offset: int
 
 
 class DemoInputResponse(StrictContract):

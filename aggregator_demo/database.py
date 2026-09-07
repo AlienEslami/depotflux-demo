@@ -11,6 +11,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Float,
     String,
     create_engine,
     text,
@@ -112,6 +113,54 @@ class ApprovalRow(Base):
     decided_by: Mapped[str] = mapped_column(String(128), nullable=False)
     result_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
+class OperationalNoticeRow(Base):
+    __tablename__ = "operational_notices"
+    __table_args__ = (
+        CheckConstraint(
+            "scenario IN ('late_return','charger_derating','combined_disruption')",
+            name="ck_operational_notices_scenario",
+        ),
+        CheckConstraint(
+            "source = 'simulator'",
+            name="ck_operational_notices_source",
+        ),
+        CheckConstraint(
+            "interpretation_backend = 'rule'",
+            name="ck_operational_notices_backend",
+        ),
+        CheckConstraint(
+            "confidence >= 0 AND confidence <= 1",
+            name="ck_operational_notices_confidence",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    baseline_run_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("optimization_runs.id"), nullable=False, index=True
+    )
+    candidate_run_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("optimization_runs.id"),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    scenario: Mapped[str] = mapped_column(String(32), nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="simulator")
+    raw_notice: Mapped[str] = mapped_column(String(2000), nullable=False)
+    structured_facts: Mapped[dict] = mapped_column(JSON, nullable=False)
+    interpretation_backend: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="rule"
+    )
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    replan_recommended: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    rationale: Mapped[str] = mapped_column(String(1000), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(128), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now
     )

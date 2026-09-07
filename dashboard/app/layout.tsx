@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Agentic Aggregator Operations',
-  description: 'Human-approved electric-fleet optimization demonstrator.',
+  title: 'DepotFlux Operations',
+  description: 'Human-approved electric fleet energy operations demonstrator.',
 };
 
 export default function RootLayout({

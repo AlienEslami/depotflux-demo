@@ -77,7 +77,7 @@ def test_worker_executes_real_optimizer_and_persists_validated_result(
     restarted_app.state.database_engine.dispose()
 
 
-def test_worker_records_an_explicit_failure_for_unsupported_run_type(tmp_path: Path):
+def test_worker_rejects_real_time_run_without_a_preserved_notice(tmp_path: Path):
     database_url = f"sqlite:///{(tmp_path / 'unsupported.db').as_posix()}"
     app = create_app(database_url=database_url, initialize_schema=True)
     client = TestClient(app)
@@ -91,6 +91,6 @@ def test_worker_records_an_explicit_failure_for_unsupported_run_type(tmp_path: P
     result = client.get(f"/api/v1/runs/{created['id']}/result")
     assert result.status_code == 200
     assert result.json()["status"] == "failed"
-    assert result.json()["failure_code"] == "unsupported_run_configuration"
+    assert result.json()["failure_code"] == "notice_not_found"
     assert result.json()["result"] is None
     app.state.database_engine.dispose()
