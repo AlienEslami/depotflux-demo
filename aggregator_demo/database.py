@@ -5,7 +5,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, String, create_engine, text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    String,
+    create_engine,
+    text,
+)
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -80,6 +89,32 @@ class RunRow(Base):
     solver_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     result_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     result_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+
+class ApprovalRow(Base):
+    __tablename__ = "operator_approvals"
+    __table_args__ = (
+        CheckConstraint(
+            "decision IN ('approved','rejected')",
+            name="ck_operator_approvals_decision",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    run_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("optimization_runs.id"),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    decision: Mapped[str] = mapped_column(String(16), nullable=False)
+    decided_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    result_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 def database_url_from_environment() -> str:

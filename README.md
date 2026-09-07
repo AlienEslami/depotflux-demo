@@ -34,6 +34,19 @@ at `/api/v1/inputs`. Unsupported queued configurations terminate with an
 explicit failure code. Terminal results are available from
 `/api/v1/runs/{run_id}/result`.
 
+Start the operator dashboard in a third terminal:
+
+```powershell
+cd dashboard
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`. The dashboard submits real registered inputs,
+polls durable run state, charts the solved site-power schedule, and records one
+immutable approve/reject decision tied to the result hash. The temporary
+operator identity remains a demonstrator boundary rather than authentication.
+
 ## Reproducing the revision (start here)
 
 The revision experiments run natively in Python through the `agentic_workflow` package; no orchestration server is involved. The n8n exports under `workflows/` are retained as an archive of the original submission's orchestration and are not part of the reproduction path.

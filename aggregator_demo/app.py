@@ -6,12 +6,20 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, Query, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from . import __version__
+from .approval_repository import (
+    ApprovalConflictError,
+    ApprovalNotFoundError,
+    ApprovalRepository,
+)
 from .contracts import (
+    ApprovalCreateRequest,
+    ApprovalResponse,
     CapabilityResponse,
     DemoInputListResponse,
     ErrorResponse,
@@ -21,6 +29,7 @@ from .contracts import (
     RunResponse,
     RunResultResponse,
     RunStatus,
+    RunTimelineResponse,
 )
 from .database import (
     create_database_engine,
@@ -74,6 +83,22 @@ def create_app(
     application.state.database_engine = engine
     application.state.session_factory = create_session_factory(engine)
     application.state.input_registry = DemoInputRegistry(input_root)
+    allowed_origins = [
+        origin.strip()
+        for origin in os.environ.get(
+            "DEMO_ALLOWED_ORIGINS",
+            "http://localhost:3000,http://127.0.0.1:3000,"
+            "https://agentic-aggregator-ops.soft-ape-5410.chatgpt.site",
+        ).split(",")
+        if origin.strip()
+    ]
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type", "Idempotency-Key", "X-Operator-ID"],
+    )
 
     @application.get(
         "/health/live",
@@ -238,6 +263,87 @@ def create_app(
                 status_code=status.HTTP_409_CONFLICT,
                 content=ErrorResponse(
                     code="run_not_complete",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+
+    @application.get(
+        "/api/v1/runs/{run_id}/approval",
+        response_model=ApprovalResponse,
+        tags=["approvals"],
+        summary="Get the immutable operator decision for a candidate",
+        responses={404: {"model": ErrorResponse}},
+    )
+    def get_approval(run_id: UUID, session: SessionDependency):
+        try:
+            return ApprovalRepository(session).get(run_id)
+        except ApprovalNotFoundError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content=ErrorResponse(
+                    code="approval_not_found",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+
+    @application.post(
+        "/api/v1/runs/{run_id}/approval",
+        response_model=ApprovalResponse,
+        status_code=status.HTTP_201_CREATED,
+        tags=["approvals"],
+        summary="Record an immutable human approval or rejection",
+        responses={
+            404: {"model": ErrorResponse},
+            409: {"model": ErrorResponse},
+        },
+    )
+    def create_approval(
+        run_id: UUID,
+        request: ApprovalCreateRequest,
+        session: SessionDependency,
+        operator_id: Annotated[
+            str,
+            Header(alias="X-Operator-ID", min_length=1, max_length=128),
+        ] = "demo-operator",
+    ):
+        try:
+            return ApprovalRepository(session).create(
+                run_id,
+                request,
+                decided_by=operator_id,
+            )
+        except RunNotFoundError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content=ErrorResponse(
+                    code="run_not_found",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+        except ApprovalConflictError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                content=ErrorResponse(
+                    code="approval_conflict",
+                    message=str(exc),
+                ).model_dump(mode="json"),
+            )
+
+    @application.get(
+        "/api/v1/runs/{run_id}/timeline",
+        response_model=RunTimelineResponse,
+        tags=["audit"],
+        summary="Get the persisted run and decision timeline",
+        responses={404: {"model": ErrorResponse}},
+    )
+    def get_timeline(run_id: UUID, session: SessionDependency):
+        try:
+            return ApprovalRepository(session).timeline(run_id)
+        except RunNotFoundError as exc:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content=ErrorResponse(
+                    code="run_not_found",
                     message=str(exc),
                 ).model_dump(mode="json"),
             )

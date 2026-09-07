@@ -119,3 +119,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if not processed:
             time.sleep(max(0.1, args.poll_interval))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

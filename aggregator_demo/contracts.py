@@ -54,6 +54,11 @@ class AgentBackend(StrEnum):
     OPENAI = "openai"
 
 
+class ApprovalDecision(StrEnum):
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
 class RunCreateRequest(StrictContract):
     run_type: RunType
     optimization_mode: OptimizationMode = OptimizationMode.SELFISH
@@ -109,6 +114,46 @@ class RunResultResponse(StrictContract):
     result: dict | None = None
     failure_code: str | None = None
     failure_message: str | None = None
+
+
+class ApprovalCreateRequest(StrictContract):
+    decision: ApprovalDecision
+    note: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("note")
+    @classmethod
+    def normalize_note(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+
+class ApprovalResponse(StrictContract):
+    id: UUID
+    run_id: UUID
+    decision: ApprovalDecision
+    decided_by: str
+    result_sha256: str
+    note: str | None = None
+    created_at: datetime
+
+
+class AuditEventResponse(StrictContract):
+    event_type: Literal[
+        "run_submitted",
+        "run_started",
+        "run_completed",
+        "decision_recorded",
+    ]
+    occurred_at: datetime
+    actor: str
+    detail: str
+
+
+class RunTimelineResponse(StrictContract):
+    run_id: UUID
+    events: list[AuditEventResponse]
 
 
 class DemoInputResponse(StrictContract):

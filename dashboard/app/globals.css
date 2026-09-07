@@ -1,0 +1,77 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.65);
+  --radius-md: calc(var(--radius) * 0.82);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.3);
+}
+
+:root {
+  --background: #07111a;
+  --foreground: #e8f1f5;
+  --card: #0d1a26;
+  --card-foreground: #e8f1f5;
+  --popover: #111f2d;
+  --popover-foreground: #e8f1f5;
+  --primary: #67e8f9;
+  --primary-foreground: #07111a;
+  --secondary: #182836;
+  --secondary-foreground: #d9e7ed;
+  --muted: #152430;
+  --muted-foreground: #8ca2ad;
+  --accent: #1c3442;
+  --accent-foreground: #c8f7ff;
+  --destructive: #fb7185;
+  --border: rgb(255 255 255 / 9%);
+  --input: rgb(255 255 255 / 12%);
+  --ring: #67e8f9;
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply bg-background font-sans;
+  }
+  body {
+    @apply min-h-screen bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at 82% -10%, rgb(34 211 238 / 9%), transparent 32rem),
+      linear-gradient(rgb(255 255 255 / 1.5%) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 1.5%) 1px, transparent 1px);
+    background-size: auto, 42px 42px, 42px 42px;
+  }
+  button,
+  select,
+  input,
+  textarea {
+    font: inherit;
+  }
+}
