@@ -1,7 +1,7 @@
 {
   "protocol_version": "advance_warning_analysis_v6",
   "source": {
-    "path": "C:\\Users\\alien\\Documents\\ChatGPT\\Agentic Aggregator\\Agentic-Aggregator-Python-Workflow\\results\\revision\\ablation_altruistic_v6\\matrix_runs.csv",
+    "path": "<REPOSITORY_ROOT>\\results\\revision\\ablation_altruistic_v6\\matrix_runs.csv",
     "sha256": "6eec4f4da275edfa0f292f44806f4e805d334c76f89cae7cb1e3bb5c475208f3",
     "rows": 60
   },

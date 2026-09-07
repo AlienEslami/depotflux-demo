@@ -1,4 +1,4 @@
-# A Multi-Agentic Aggregator Design for Electric Bus Fleet Charging and Grid Flexibility Management
+# DepotFlux — Synthetic OT Security and Fleet-Energy Demonstrator
 
 An energy optimizer can produce a feasible schedule and still create operational
 risk if an unapproved, modified, stale, replayed or out-of-range result crosses
@@ -6,9 +6,9 @@ into an OT command path. **DepotFlux** demonstrates how to keep that boundary
 human-approved, hash-bound, segmented, fail-closed and auditable.
 
 This repository contains two related bodies of work: the DepotFlux industry
-demonstrator and the frozen research package for *A Multi-Agentic Aggregator
-Design for Electric Bus Fleet Charging and Grid Flexibility Management*
-(TRC-26-02380).
+demonstrator and the frozen research package that it grew from. The research
+package supports the manuscript *A Multi-Agentic Aggregator Design for Electric
+Bus Fleet Charging and Grid Flexibility Management* (TRC-26-02380).
 
 ## Industry demonstrator
 
@@ -289,6 +289,12 @@ sum_t S_buy[t] * w_buy[t] - sum_t S_sell[t] * w_sell[t]
 
 where `S_buy` is the tariff paid by the public transport operator, `S_sell` is the V2G revenue tariff, `w_buy` is grid energy purchased, and `w_sell` is energy sold through V2G. The real-time optimizer adds service continuity, interruption, switching, and SOC-shortfall penalties for remaining-horizon rescheduling.
 
-## Citation and License
+## Citation and licence
 
-Add the final paper citation and license before public release. If you want others to reuse the code, choose an explicit license such as MIT, Apache-2.0, or BSD-3-Clause.
+The final paper citation will be added when it is available. This repository
+does not yet grant a software or data licence. Public visibility alone does not
+permit reuse, redistribution or derivative works; the repository owner must
+choose an explicit licence before an open-source release.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the local validation workflow and
+[SECURITY.md](SECURITY.md) for responsible vulnerability reporting.

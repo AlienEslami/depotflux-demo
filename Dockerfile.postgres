@@ -1,0 +1,10 @@
+FROM postgres:17-alpine
+
+# Refresh fixable Alpine packages at build time. The upstream entrypoint uses
+# gosu only to drop privileges; su-exec provides the same invocation shape
+# without carrying the upstream helper's embedded Go runtime into this image.
+RUN apk upgrade --no-cache \
+    && apk add --no-cache su-exec \
+    && sed -i 's/exec gosu postgres/exec su-exec postgres/' /usr/local/bin/docker-entrypoint.sh \
+    && rm -f /usr/local/bin/gosu \
+    && ! grep -q 'exec gosu postgres' /usr/local/bin/docker-entrypoint.sh

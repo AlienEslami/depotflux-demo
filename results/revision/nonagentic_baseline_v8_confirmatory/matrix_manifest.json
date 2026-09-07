@@ -51,8 +51,8 @@
     "floor_formula": "fraction * reference"
   },
   "inputs": {
-    "notice_file": "C:/Users/alien/Documents/ChatGPT/Agentic Aggregator/Agentic-Aggregator-Python-Workflow/.tmp/confirmatory-clean/inputs/revision/advance_warning_notices_v1.json",
-    "physical_event_file": "C:/Users/alien/Documents/ChatGPT/Agentic Aggregator/Agentic-Aggregator-Python-Workflow/.tmp/confirmatory-clean/inputs/revision/advance_warning_physical_events_v1.json",
+    "notice_file": "<REPOSITORY_ROOT>/.tmp/confirmatory-clean/inputs/revision/advance_warning_notices_v1.json",
+    "physical_event_file": "<REPOSITORY_ROOT>/.tmp/confirmatory-clean/inputs/revision/advance_warning_physical_events_v1.json",
     "disturbance_workbook": "inputs/rt_disturbance_scenarios_multiple.xlsx",
     "disturbance_scenarios": [
       "rt_none"

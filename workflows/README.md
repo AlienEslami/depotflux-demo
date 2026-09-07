@@ -9,7 +9,9 @@ This folder contains the n8n workflows used for the agentic day-ahead and real-t
 
 ## Import Notes
 
-The exports preserve n8n node structure, prompts, parsers, and connections. They also contain local credential names and Google document IDs from the original experiments. Before running them in another n8n instance:
+The exports preserve n8n node structure, prompts, parsers, and connections.
+Credential references and Google document/folder IDs have been replaced with
+placeholders. Before running them in another n8n instance:
 
 1. Reconnect Google Sheets, Google Drive, and OpenAI credentials.
 2. Replace Google document/folder IDs with the replicated data sources.

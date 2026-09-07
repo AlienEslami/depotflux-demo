@@ -541,7 +541,7 @@ app = create_gateway_app()
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the synthetic DepotFlux OT gateway.")
-    parser.add_argument("--host", default=os.environ.get("DEMO_GATEWAY_HOST", "0.0.0.0"))
+    parser.add_argument("--host", default=os.environ.get("DEMO_GATEWAY_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("DEMO_GATEWAY_PORT", "8081")))
     args = parser.parse_args(argv)
     import uvicorn

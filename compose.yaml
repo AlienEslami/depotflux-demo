@@ -20,6 +20,11 @@ services:
         NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000
     ports:
       - "127.0.0.1:3000:3000"
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       enterprise_operator: {}
     depends_on:
@@ -73,7 +78,10 @@ services:
         condition: service_healthy
 
   database:
-    image: postgres:17.6-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    image: depotflux-postgres:17
     restart: unless-stopped
     environment:
       POSTGRES_DB: depotflux

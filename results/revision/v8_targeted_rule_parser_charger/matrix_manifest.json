@@ -44,13 +44,13 @@
     "floor_formula": "fraction * reference"
   },
   "inputs": {
-    "notice_file": "C:/Users/alien/Documents/ChatGPT/Agentic Aggregator/Agentic-Aggregator-Python-Workflow/inputs/revision/advance_warning_notices_v1.json",
-    "physical_event_file": "C:/Users/alien/Documents/ChatGPT/Agentic Aggregator/Agentic-Aggregator-Python-Workflow/inputs/revision/advance_warning_physical_events_v1.json",
+    "notice_file": "<REPOSITORY_ROOT>/inputs/revision/advance_warning_notices_v1.json",
+    "physical_event_file": "<REPOSITORY_ROOT>/inputs/revision/advance_warning_physical_events_v1.json",
     "disturbance_workbook": "inputs/rt_disturbance_scenarios_multiple.xlsx",
     "disturbance_scenarios": [
       "rt_none"
     ],
-    "ablation_protocol_file": "C:/Users/alien/Documents/ChatGPT/Agentic Aggregator/Agentic-Aggregator-Python-Workflow/inputs/revision/advance_warning_ablation_protocol_v8.json",
+    "ablation_protocol_file": "<REPOSITORY_ROOT>/inputs/revision/advance_warning_ablation_protocol_v8.json",
     "notice_sha256": "9ee43ecf03af7bba22a9aa53c8eaec6f32fcb96f8c901946293897a3f3cd6fc9",
     "physical_event_sha256": "0bbdc6efec08ae0f0b2440ab05cd39d5cb74606c1e724d0db2118350a617c74a",
     "ablation_protocol_sha256": "d08529f02cea140d74216843ea179ea38db13d47d8f4bde8848eb3a26c207188",

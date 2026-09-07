@@ -158,7 +158,7 @@ Pop-Location
 
 ## Last verified state
 
-- 229 Python tests passed; one pre-existing Starlette TestClient deprecation
+- 235 Python tests passed; one upstream Starlette TestClient deprecation
   warning remains.
 - Dashboard lint, TypeScript check and production build passed. The build reports
   a non-blocking large JavaScript chunk warning.

@@ -294,7 +294,7 @@ class SimulatedPLCServer:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the synthetic DepotFlux Modbus/TCP PLC.")
-    parser.add_argument("--host", default=os.environ.get("DEMO_PLC_HOST", "0.0.0.0"))
+    parser.add_argument("--host", default=os.environ.get("DEMO_PLC_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("DEMO_PLC_PORT", "1502")))
     parser.add_argument(
         "--site-capacity-kw",

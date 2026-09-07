@@ -4,10 +4,24 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import URLError
+from urllib.parse import urlsplit
 from urllib.request import urlopen
 
 
-API_URL = os.environ.get("DEMO_API_URL", "http://api:8000").rstrip("/")
+def validate_api_url(value: str) -> str:
+    """Accept only an unauthenticated HTTP(S) origin for the internal API."""
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise ValueError("DEMO_API_URL must be an HTTP(S) URL without user info")
+    return value.rstrip("/")
+
+
+API_URL = validate_api_url(os.environ.get("DEMO_API_URL", "http://api:8000"))
 
 
 class MonitorHandler(BaseHTTPRequestHandler):
@@ -19,7 +33,10 @@ class MonitorHandler(BaseHTTPRequestHandler):
             self._json(404, {"code": "not_found"})
             return
         try:
-            with urlopen(f"{API_URL}/api/v1/security/events?limit=200", timeout=2) as response:
+            # API_URL is restricted to HTTP(S) by validate_api_url above.
+            with urlopen(  # nosec B310
+                f"{API_URL}/api/v1/security/events?limit=200", timeout=2
+            ) as response:
                 events = json.load(response)["items"]
         except (OSError, URLError, ValueError, KeyError):
             self._json(503, {"status": "unavailable", "source": "security-events"})
@@ -47,7 +64,7 @@ class MonitorHandler(BaseHTTPRequestHandler):
 
 
 def main() -> int:
-    host = os.environ.get("DEMO_MONITOR_HOST", "0.0.0.0")
+    host = os.environ.get("DEMO_MONITOR_HOST", "127.0.0.1")
     port = int(os.environ.get("DEMO_MONITOR_PORT", "9100"))
     ThreadingHTTPServer((host, port), MonitorHandler).serve_forever()
     return 0

@@ -1,7 +1,7 @@
 {
   "protocol_version": "advance_warning_analysis_v6",
   "source": {
-    "path": "C:\\Users\\alien\\Documents\\ChatGPT\\Agentic Aggregator\\Agentic-Aggregator-Python-Workflow\\results\\revision\\price_escalation_v3\\matrix_runs.csv",
+    "path": "<REPOSITORY_ROOT>\\results\\revision\\price_escalation_v3\\matrix_runs.csv",
     "sha256": "6891583a3be32e232499c2d2f744b06e695c1cf5e11a2d1e42d6541531380e03",
     "rows": 16
   },

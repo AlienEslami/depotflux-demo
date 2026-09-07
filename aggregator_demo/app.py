@@ -132,9 +132,7 @@ def create_app(
         origin.strip()
         for origin in os.environ.get(
             "DEMO_ALLOWED_ORIGINS",
-            "http://localhost:3000,http://127.0.0.1:3000,"
-            "https://agentic-aggregator-ops.soft-ape-5410.chatgpt.site,"
-            "https://depotflux-ops.soft-ape-5410.chatgpt.site",
+            "http://localhost:3000,http://127.0.0.1:3000",
         ).split(",")
         if origin.strip()
     ]
