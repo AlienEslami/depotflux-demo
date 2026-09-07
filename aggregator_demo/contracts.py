@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
 from typing import Literal
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class StrictContract(BaseModel):
@@ -37,10 +39,78 @@ class RunStatus(StrEnum):
         }
 
 
+class RunType(StrEnum):
+    DAY_AHEAD = "day_ahead"
+    REAL_TIME = "real_time"
+
+
+class OptimizationMode(StrEnum):
+    SELFISH = "selfish"
+    ALTRUISTIC = "altruistic"
+
+
+class AgentBackend(StrEnum):
+    RULE = "rule"
+    OPENAI = "openai"
+
+
+class RunCreateRequest(StrictContract):
+    run_type: RunType
+    optimization_mode: OptimizationMode = OptimizationMode.SELFISH
+    input_reference: str = Field(min_length=1, max_length=255)
+    input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    v2g_enabled: bool = True
+    agent_backend: AgentBackend = AgentBackend.RULE
+    scenario_ids: list[str] = Field(default_factory=list, max_length=20)
+
+    @field_validator("scenario_ids")
+    @classmethod
+    def unique_nonempty_scenarios(cls, value: list[str]) -> list[str]:
+        normalized = [scenario.strip() for scenario in value]
+        if any(not scenario for scenario in normalized):
+            raise ValueError("scenario_ids may not contain empty values")
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("scenario_ids must be unique")
+        return normalized
+
+
+class RunResponse(StrictContract):
+    model_config = ConfigDict(extra="forbid", from_attributes=True)
+
+    id: UUID
+    status: RunStatus
+    run_type: RunType
+    optimization_mode: OptimizationMode
+    input_reference: str
+    input_sha256: str
+    v2g_enabled: bool
+    agent_backend: AgentBackend
+    scenario_ids: list[str]
+    requested_by: str
+    created_at: datetime
+    updated_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    failure_code: str | None = None
+    failure_message: str | None = None
+
+
+class RunListResponse(StrictContract):
+    items: list[RunResponse]
+    limit: int
+    offset: int
+
+
+class ErrorResponse(StrictContract):
+    code: str
+    message: str
+
+
 class HealthResponse(StrictContract):
     service: str
-    status: Literal["ok"]
+    status: Literal["ok", "unavailable"]
     version: str
+    detail: str | None = None
 
 
 class CapabilityResponse(StrictContract):

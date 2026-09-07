@@ -12,12 +12,19 @@ milestones, acceptance gates, and staffing assumptions are defined in
 The initial versioned API surface can be started after installation with:
 
 ```powershell
+python -m pip install -e .
+alembic upgrade head
 agentic-aggregator-api
 ```
 
 It serves interactive API documentation at `http://127.0.0.1:8000/docs` and
 declares explicitly that the demonstrator does not directly control physical
-assets.
+assets. The zero-setup development database is SQLite under `.demo/`; set
+`DEMO_DATABASE_URL` to a PostgreSQL URL and
+`DEMO_AUTO_CREATE_SCHEMA=false` for a migrated deployment. `X-Operator-ID` is
+an explicitly temporary demonstrator identity header, not authentication. Run
+submission supports `Idempotency-Key`, persisted retrieval/listing, and
+cancellation through the versioned `/api/v1/runs` API.
 
 ## Reproducing the revision (start here)
 

@@ -53,6 +53,10 @@ htmlcov/
 # Logs
 *.log
 
+# Local industry-demonstrator state. PostgreSQL is the deployment target;
+# SQLite remains the zero-setup development and test backend.
+.demo/
+
 # Local research and operational workbooks are not published. Supply these
 # privately when running the closed-loop optimizer experiments.
 *.xls
