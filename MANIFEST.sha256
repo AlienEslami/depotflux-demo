@@ -1,7 +1,7 @@
 SHA256  BYTES  PATH
 5a5b16ac9de16172f01ca73c735ac719b9fee519563d4e21e7401e9f48c810f0  1142  Agentic-Aggregator-Python-Workflow/.env.example
 0e29c94b09f989f25ea05b2a95d746d435bbc3407235c975314fc9e8ac6ea78d  426  Agentic-Aggregator-Python-Workflow/.gitattributes
-f453b58822c5b7f83254e5a2acefe1cd5c1d027dda543f59a7b72ca487591fa7  718  Agentic-Aggregator-Python-Workflow/.github/workflows/ci.yml
+8fa5a7d8de7b4f9c4a7a92878c111fb87166b42b6e943e6c2c2ed9eab2839073  718  Agentic-Aggregator-Python-Workflow/.github/workflows/ci.yml
 56642f23e9959656257e3c6d43c014dd6870a5f01aeee68508d3b5d567c9f6b2  4393  Agentic-Aggregator-Python-Workflow/.gitignore
 c8e8e8d0c7436894ade8620633f769d95c2cf39c982e687036593d23e867d5b0  187  Agentic-Aggregator-Python-Workflow/agentic_workflow/__init__.py
 935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d  48  Agentic-Aggregator-Python-Workflow/agentic_workflow/__main__.py

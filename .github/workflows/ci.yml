@@ -13,9 +13,9 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           # The frozen reviewer environment currently pins NumPy 2.5.x,
           # whose published wheels require Python 3.12 or newer.
