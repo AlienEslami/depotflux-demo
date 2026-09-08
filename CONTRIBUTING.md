@@ -11,7 +11,7 @@ Use Python 3.12 or newer and Node.js 24 for the dashboard.
 ```powershell
 python -m pip install -r requirements-dev-lock.txt
 python -m pytest -q
-python scripts/validate_revision_package.py
+python scripts/export_openapi.py --check
 
 Set-Location dashboard
 npm ci
@@ -21,10 +21,11 @@ npx tsc --noEmit
 npm run build
 ```
 
-For OT-path changes, also run from the repository root:
+For OT-path or operational changes, start the local lab and run from the
+repository root:
 
 ```powershell
-./scripts/run_ot_evidence.ps1
+./scripts/depotflux.ps1 verify
 ```
 
 Pull requests should explain the problem and scope, identify security-boundary

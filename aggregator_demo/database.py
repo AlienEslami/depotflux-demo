@@ -25,7 +25,7 @@ from sqlalchemy.pool import StaticPool
 from .contracts import AgentBackend, OptimizationMode, RunStatus, RunType
 
 
-DEFAULT_DATABASE_URL = "sqlite:///./.demo/agentic_aggregator.db"
+DEFAULT_DATABASE_URL = "sqlite:///./.demo/depotflux.db"
 
 
 def utc_now() -> datetime:

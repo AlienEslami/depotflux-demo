@@ -2,9 +2,9 @@
 
 ## Outcome
 
-Turn the existing DepotFlux research workflow into an interview-ready software
-demonstrator showing how an optimization result is authorized, constrained,
-transported to a synthetic industrial endpoint, monitored and investigated.
+Deliver a reviewable DepotFlux software demonstrator showing how an
+optimization result is authorized, constrained, transported to a synthetic
+industrial endpoint, monitored and investigated.
 
 The deliverable is intentionally not a field-control product. It must remain
 software-only with `direct_asset_control=false` until a separately authorized,

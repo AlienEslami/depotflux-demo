@@ -37,6 +37,12 @@ services:
     environment:
       DEMO_DATABASE_URL: postgresql+psycopg://depotflux:${DEMO_DATABASE_PASSWORD:?set DEMO_DATABASE_PASSWORD}@database:5432/depotflux
       DEMO_AUTO_CREATE_SCHEMA: "false"
+      DEMO_ENVIRONMENT: demo
+      DEMO_AUTH_MODE: ${DEMO_AUTH_MODE:-api_key}
+      DEMO_OPERATOR_API_KEY: ${DEMO_OPERATOR_API_KEY:?set DEMO_OPERATOR_API_KEY}
+      DEMO_APPROVER_API_KEY: ${DEMO_APPROVER_API_KEY:?set DEMO_APPROVER_API_KEY}
+      DEMO_AUDITOR_API_KEY: ${DEMO_AUDITOR_API_KEY:?set DEMO_AUDITOR_API_KEY}
+      DEMO_ADMIN_API_KEY: ${DEMO_ADMIN_API_KEY:?set DEMO_ADMIN_API_KEY}
       DEMO_HOST: 0.0.0.0
       DEMO_PORT: "8000"
       DEMO_ALLOWED_ORIGINS: http://127.0.0.1:3000,http://localhost:3000
@@ -48,6 +54,8 @@ services:
       RT_SOLVER_ORDER: appsi_highs,highs
     ports:
       - "127.0.0.1:8000:8000"
+    volumes:
+      - ./.demo/backups:/backups
     networks:
       enterprise_operator: {}
       industrial_dmz: {}
@@ -143,6 +151,7 @@ services:
     command: ["python", "-m", "aggregator_demo.security_monitor"]
     environment:
       DEMO_API_URL: http://api:8000
+      DEMO_MONITOR_API_KEY: ${DEMO_AUDITOR_API_KEY:?set DEMO_AUDITOR_API_KEY}
       DEMO_MONITOR_HOST: 0.0.0.0
       DEMO_MONITOR_PORT: "9100"
     ports:

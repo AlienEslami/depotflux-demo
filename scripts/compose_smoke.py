@@ -19,6 +19,12 @@ def _read_environment(path: Path) -> dict[str, str]:
     return values
 
 
+def _role_headers(environment: dict[str, str], role: str) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {environment[f'DEMO_{role.upper()}_API_KEY']}"
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a local software-only OT smoke demo.")
     parser.add_argument("--env-file", default=".demo/ot-lab.env")
@@ -27,8 +33,8 @@ def main() -> int:
     environment = _read_environment(Path(args.env_file))
     base_url = "http://127.0.0.1:8000"
     control_headers = {
+        **_role_headers(environment, "operator"),
         "X-Control-Key": environment["DEMO_CONTROL_API_KEY"],
-        "X-Operator-ID": "compose-smoke-operator",
     }
     evidence: dict = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -39,11 +45,16 @@ def main() -> int:
     with httpx.Client(base_url=base_url, timeout=10) as client:
         health = client.get("/health/ready")
         health.raise_for_status()
-        inputs = client.get("/api/v1/inputs").json()["items"]
+        inputs = client.get(
+            "/api/v1/inputs", headers=_role_headers(environment, "operator")
+        ).json()["items"]
         selected = inputs[0]
         created = client.post(
             "/api/v1/runs",
-            headers={"Idempotency-Key": str(uuid4())},
+            headers={
+                **_role_headers(environment, "operator"),
+                "Idempotency-Key": str(uuid4()),
+            },
             json={
                 "run_type": "day_ahead",
                 "optimization_mode": "selfish",
@@ -58,7 +69,10 @@ def main() -> int:
         run_id = created.json()["id"]
         deadline = time.monotonic() + 90
         while time.monotonic() < deadline:
-            run = client.get(f"/api/v1/runs/{run_id}").json()
+            run = client.get(
+                f"/api/v1/runs/{run_id}",
+                headers=_role_headers(environment, "operator"),
+            ).json()
             if run["status"] in {"succeeded", "failed", "infeasible", "timed_out"}:
                 break
             time.sleep(0.5)
@@ -66,7 +80,7 @@ def main() -> int:
             raise RuntimeError(f"compose smoke optimization ended as {run['status']}")
         approval = client.post(
             f"/api/v1/runs/{run_id}/approval",
-            headers={"X-Operator-ID": "compose-smoke-approver"},
+            headers=_role_headers(environment, "approver"),
             json={"decision": "approved", "note": "software-only smoke evidence"},
         )
         approval.raise_for_status()
@@ -112,7 +126,10 @@ def main() -> int:
         )
         invalid = client.post(
             endpoint,
-            headers={"X-Control-Key": "deliberately-wrong"},
+            headers={
+                **_role_headers(environment, "operator"),
+                "X-Control-Key": "deliberately-wrong",
+            },
             json={"interval_index": 1},
         )
         evidence["checks"].append(
@@ -137,8 +154,8 @@ def main() -> int:
         safe = client.post(
             "/api/v1/emergency-safe-state",
             headers={
+                **_role_headers(environment, "admin"),
                 "X-Emergency-Key": environment["DEMO_EMERGENCY_API_KEY"],
-                "X-Operator-ID": "compose-smoke-incident-commander",
             },
             json={"reason": "deterministic local recovery drill"},
         )
@@ -147,7 +164,8 @@ def main() -> int:
             {"scenario": "emergency_safe_state", "passed": True, "response": safe.json()}
         )
         evidence["security_events"] = client.get(
-            "/api/v1/security/events?limit=50"
+            "/api/v1/security/events?limit=50",
+            headers=_role_headers(environment, "auditor"),
         ).json()["items"]
         evidence["run_id"] = run_id
     evidence["passed"] = all(check["passed"] for check in evidence["checks"])

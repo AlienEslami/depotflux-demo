@@ -5,8 +5,12 @@ from types import SimpleNamespace
 
 import pyomo.environ as pyo
 
-from agentic_workflow.telemetry import ResourceMeter, summarize_agent_calls, system_profile
-from app_rt import _extract_solver_telemetry
+from aggregator_demo.optimization.real_time import _extract_solver_telemetry
+from aggregator_demo.optimization.resource_metrics import (
+    ResourceMeter,
+    summarize_agent_calls,
+    system_profile,
+)
 
 
 def test_resource_meter_reports_reproducible_local_proxies():

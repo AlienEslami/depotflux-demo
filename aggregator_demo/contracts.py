@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from .auth import AuthMode, Role
+
 
 class StrictContract(BaseModel):
     """Base for public API contracts; unexpected fields are rejected."""
@@ -51,7 +53,6 @@ class OptimizationMode(StrEnum):
 
 class AgentBackend(StrEnum):
     RULE = "rule"
-    OPENAI = "openai"
 
 
 class ApprovalDecision(StrEnum):
@@ -248,6 +249,14 @@ class CapabilityResponse(StrictContract):
     operating_boundary: Literal["human_approved_decision_support"]
     direct_asset_control: Literal[False] = False
     run_statuses: list[RunStatus]
+    authentication_mode: AuthMode
+    available_roles: list[Role]
+
+
+class SessionResponse(StrictContract):
+    subject: str
+    role: Role
+    authentication_mode: AuthMode
 
 
 class ControlSimulationCreateRequest(StrictContract):

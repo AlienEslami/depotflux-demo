@@ -40,11 +40,17 @@ future, replayed, non-finite or out-of-envelope commands.
 ## Engineering tradeoffs
 
 The project uses straightforward, inspectable controls rather than implying a
-production architecture. Shared secrets stand in for identity infrastructure;
-Docker bridges stand in for industrial firewalls; the replay cache is local
-memory; evidence is relational rather than signed/WORM; and the PLC is a small
-state model rather than hardware or a digital twin. These choices keep the lab
-reproducible while making the missing production work visible.
+production architecture. Role-scoped local credentials stand in for an
+external identity provider; Docker bridges stand in for industrial firewalls;
+the replay cache is local memory; evidence is relational rather than
+signed/WORM; and the PLC is a small state model rather than hardware or a
+digital twin. These choices keep the lab reproducible while making the missing
+production work visible.
+
+The software line also demonstrates an installable Python package, a versioned
+OpenAPI contract, configuration validation, structured logs and bounded
+metrics, idempotent bootstrap data, verified backup/restore, restart recovery,
+performance gates, and a documented review/release workflow.
 
 ## What this demonstrates
 

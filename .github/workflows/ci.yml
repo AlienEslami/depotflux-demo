@@ -17,8 +17,6 @@ jobs:
 
       - uses: actions/setup-python@v7
         with:
-          # The frozen reviewer environment currently pins NumPy 2.5.x,
-          # whose published wheels require Python 3.12 or newer.
           python-version: "3.12"
           cache: pip
 
@@ -27,15 +25,23 @@ jobs:
 
       - name: Audit pinned Python dependencies
         run: |
-          python -m pip install pip-audit==2.10.1
+          python -m pip install pip-audit==2.10.1 bandit==1.9.4
           python -m pip_audit -r requirements-demo-lock.txt --progress-spinner off
-          python -m pip_audit -r requirements-lock.txt --progress-spinner off
+
+      - name: Static security analysis
+        run: python -m bandit -q -r aggregator_demo scripts
 
       - name: Run tests
         run: python -m pytest -q
 
+      - name: Check versioned API contract
+        run: python scripts/export_openapi.py --check
+
       - name: Import the demonstrator API
         run: python -c "from aggregator_demo.app import app; assert app.version == '0.1.0'"
+
+      - name: Build installable package
+        run: python -m build --wheel --no-isolation --outdir .demo/wheels
 
       - name: Validate Compose topology
         env:
@@ -43,6 +49,11 @@ jobs:
           DEMO_EMERGENCY_API_KEY: ci-emergency-placeholder
           DEMO_GATEWAY_API_KEY: ci-gateway-placeholder
           DEMO_DATABASE_PASSWORD: ci-database-placeholder
+          DEMO_AUTH_MODE: disabled
+          DEMO_OPERATOR_API_KEY: ci-operator-placeholder
+          DEMO_APPROVER_API_KEY: ci-approver-placeholder
+          DEMO_AUDITOR_API_KEY: ci-auditor-placeholder
+          DEMO_ADMIN_API_KEY: ci-admin-placeholder
         run: docker compose config --quiet
 
   dashboard:

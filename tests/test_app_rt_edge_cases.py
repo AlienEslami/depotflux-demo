@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import app_rt
+from aggregator_demo.optimization import real_time as app_rt
 import pytest
 
 

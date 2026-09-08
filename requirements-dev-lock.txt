@@ -1,3 +1,5 @@
--r requirements-lock.txt
+-r requirements-demo-lock.txt
+build==1.6.0
 pytest==9.1.1
 setuptools==83.0.0
+wheel==0.48.0

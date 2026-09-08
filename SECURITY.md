@@ -23,5 +23,5 @@ be coordinated privately and disclosed after a corrected version is available.
 ## Supported versions
 
 Only the latest commit on the default branch is considered for security fixes.
-Research artifacts and historical workflow exports are retained for
-reproducibility and are not maintained as deployed services.
+Research artifacts retained on separate branches are not maintained as deployed
+services.

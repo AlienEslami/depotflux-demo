@@ -2,6 +2,7 @@
 .github
 .demo
 .pytest_cache
+.tmp*
 **/__pycache__
 **/*.pyc
 dashboard/.next
@@ -9,10 +10,14 @@ dashboard/.vinext
 dashboard/.wrangler
 dashboard/dist
 dashboard/node_modules
-outputs
-paper_outputs
-results
-tmp
-.tmp*
+tests
+docs
+openapi
+/inputs
+/results
+/paper_outputs
+/data
+/workflows
 .env
 *.db
+*.log

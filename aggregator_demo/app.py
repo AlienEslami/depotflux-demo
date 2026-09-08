@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import logging
+import time
 from hmac import compare_digest
 from pathlib import Path
 from typing import Annotated
@@ -8,11 +10,20 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from . import __version__
+from .auth import (
+    AuthenticationError,
+    AuthMode,
+    Principal,
+    Role,
+    require_role,
+)
 from .approval_repository import (
     ApprovalConflictError,
     ApprovalNotFoundError,
@@ -46,6 +57,7 @@ from .contracts import (
     RunTimelineResponse,
     RunType,
     SecurityEventListResponse,
+    SessionResponse,
 )
 from .control_repository import ControlSimulationRepository
 from .dispatch_repository import DispatchEvidenceRepository, DispatchRejectedError
@@ -72,6 +84,8 @@ from .ot_security import (
 )
 from .ot_gateway import OTGatewayClient
 from .run_repository import RunConflictError, RunNotFoundError, RunRepository
+from .observability import RequestMetrics, configure_logging, correlation_id
+from .settings import RuntimeSettings
 
 
 def database_session(request: Request):
@@ -80,13 +94,48 @@ def database_session(request: Request):
 
 
 SessionDependency = Annotated[Session, Depends(database_session)]
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def _environment_flag(name: str, default: bool) -> bool:
-    value = os.environ.get(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
+def authenticated_principal(
+    request: Request,
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None, Depends(bearer_scheme)
+    ] = None,
+    development_subject: Annotated[
+        str, Header(alias="X-Operator-ID", min_length=1, max_length=128)
+    ] = "demo-operator",
+) -> Principal:
+    authorization = (
+        f"{credentials.scheme} {credentials.credentials}" if credentials else None
+    )
+    principal = request.app.state.auth_config.authenticate(
+        authorization, development_subject=development_subject
+    )
+    request.state.principal = principal
+    return principal
+
+
+def require_roles(*roles: Role):
+    allowed_roles = set(roles)
+
+    def dependency(
+        principal: Annotated[Principal, Depends(authenticated_principal)],
+    ) -> Principal:
+        require_role(principal, allowed_roles)
+        return principal
+
+    return dependency
+
+
+AnyPrincipal = Annotated[Principal, Depends(authenticated_principal)]
+OperatorPrincipal = Annotated[
+    Principal, Depends(require_roles(Role.OPERATOR, Role.ADMIN))
+]
+ApproverPrincipal = Annotated[
+    Principal, Depends(require_roles(Role.APPROVER, Role.ADMIN))
+]
+AdminPrincipal = Annotated[Principal, Depends(require_roles(Role.ADMIN))]
 
 
 def create_app(
@@ -97,10 +146,12 @@ def create_app(
     control_api_key: str | None = None,
     control_gateway=None,
     emergency_api_key: str | None = None,
+    runtime_settings: RuntimeSettings | None = None,
 ) -> FastAPI:
-    engine = create_database_engine(database_url)
+    settings = runtime_settings or RuntimeSettings.from_environment()
+    engine = create_database_engine(database_url or settings.database_url)
     if initialize_schema is None:
-        initialize_schema = _environment_flag("DEMO_AUTO_CREATE_SCHEMA", True)
+        initialize_schema = settings.auto_create_schema
     if initialize_schema:
         create_schema(engine)
 
@@ -114,6 +165,9 @@ def create_app(
     )
     application.state.database_engine = engine
     application.state.session_factory = create_session_factory(engine)
+    application.state.runtime_settings = settings
+    application.state.auth_config = settings.auth
+    application.state.request_metrics = RequestMetrics()
     application.state.input_registry = DemoInputRegistry(input_root)
     application.state.control_api_key = control_api_key or os.environ.get(
         "DEMO_CONTROL_API_KEY"
@@ -128,17 +182,11 @@ def create_app(
     application.state.emergency_api_key = emergency_api_key or os.environ.get(
         "DEMO_EMERGENCY_API_KEY"
     )
-    allowed_origins = [
-        origin.strip()
-        for origin in os.environ.get(
-            "DEMO_ALLOWED_ORIGINS",
-            "http://localhost:3000,http://127.0.0.1:3000",
-        ).split(",")
-        if origin.strip()
-    ]
+    configure_logging(settings.log_level)
+    request_logger = logging.getLogger("depotflux.http")
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=allowed_origins,
+        allow_origins=list(settings.allowed_origins),
         allow_credentials=False,
         allow_methods=["GET", "POST"],
         allow_headers=[
@@ -147,8 +195,87 @@ def create_app(
             "X-Control-Key",
             "X-Emergency-Key",
             "X-Operator-ID",
+            "Authorization",
+            "X-Correlation-ID",
         ],
     )
+
+    @application.exception_handler(AuthenticationError)
+    async def authentication_error_handler(
+        _request: Request, exc: AuthenticationError
+    ) -> JSONResponse:
+        headers = {"WWW-Authenticate": "Bearer"} if exc.status_code == 401 else None
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=ErrorResponse(code=exc.code, message=str(exc)).model_dump(mode="json"),
+            headers=headers,
+        )
+
+    @application.exception_handler(RequestValidationError)
+    async def request_validation_error_handler(
+        _request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        first = exc.errors()[0] if exc.errors() else {}
+        location = ".".join(str(part) for part in first.get("loc", ()) if part != "body")
+        message = str(first.get("msg", "request validation failed"))
+        if location:
+            message = f"{location}: {message}"
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            content=ErrorResponse(
+                code="request_validation_failed", message=message
+            ).model_dump(mode="json"),
+        )
+
+    @application.middleware("http")
+    async def request_observability(request: Request, call_next):
+        request_correlation_id = correlation_id(request.headers.get("X-Correlation-ID"))
+        request.state.correlation_id = request_correlation_id
+        started = time.perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception:
+            duration = time.perf_counter() - started
+            application.state.request_metrics.record(
+                method=request.method,
+                route="<unhandled>",
+                status_code=500,
+                duration_seconds=duration,
+            )
+            request_logger.exception(
+                "request failed",
+                extra={
+                    "correlation_id": request_correlation_id,
+                    "method": request.method,
+                    "route": "<unhandled>",
+                    "status_code": 500,
+                    "duration_ms": round(duration * 1000, 3),
+                },
+            )
+            raise
+        duration = time.perf_counter() - started
+        route = getattr(request.scope.get("route"), "path", "<unmatched>")
+        application.state.request_metrics.record(
+            method=request.method,
+            route=route,
+            status_code=response.status_code,
+            duration_seconds=duration,
+        )
+        response.headers["X-Correlation-ID"] = request_correlation_id
+        principal = getattr(request.state, "principal", None)
+        request_logger.info(
+            "request completed",
+            extra={
+                "correlation_id": request_correlation_id,
+                "method": request.method,
+                "route": route,
+                "status_code": response.status_code,
+                "duration_ms": round(duration * 1000, 3),
+                "actor": getattr(principal, "subject", None),
+                "role": getattr(principal, "role", None),
+            },
+        )
+        return response
 
     @application.get(
         "/health/live",
@@ -201,6 +328,35 @@ def create_app(
             operating_boundary="human_approved_decision_support",
             direct_asset_control=False,
             run_statuses=list(RunStatus),
+            authentication_mode=settings.auth.mode,
+            available_roles=list(Role),
+        )
+
+    @application.get(
+        "/api/v1/session",
+        response_model=SessionResponse,
+        tags=["system"],
+        summary="Resolve the current authenticated software role",
+        responses={401: {"model": ErrorResponse}},
+    )
+    def session(principal: AnyPrincipal) -> SessionResponse:
+        return SessionResponse(
+            subject=principal.subject,
+            role=principal.role,
+            authentication_mode=settings.auth.mode,
+        )
+
+    @application.get(
+        "/metrics",
+        include_in_schema=False,
+        response_class=PlainTextResponse,
+    )
+    def metrics() -> PlainTextResponse:
+        if not settings.metrics_enabled:
+            return PlainTextResponse("metrics disabled\n", status_code=404)
+        return PlainTextResponse(
+            application.state.request_metrics.render_prometheus(),
+            media_type="text/plain; version=0.0.4",
         )
 
     @application.get(
@@ -209,7 +365,7 @@ def create_app(
         tags=["inputs"],
         summary="List immutable inputs bundled with the demonstrator",
     )
-    def list_demo_inputs() -> DemoInputListResponse:
+    def list_demo_inputs(_principal: AnyPrincipal) -> DemoInputListResponse:
         return DemoInputListResponse(items=application.state.input_registry.list())
 
     @application.post(
@@ -223,14 +379,11 @@ def create_app(
     def create_failure_drill(
         request: FailureDrillCreateRequest,
         session: SessionDependency,
+        principal: OperatorPrincipal,
         idempotency_key: Annotated[
             str | None,
             Header(alias="Idempotency-Key", min_length=1, max_length=128),
         ] = None,
-        operator_id: Annotated[
-            str,
-            Header(alias="X-Operator-ID", min_length=1, max_length=128),
-        ] = "demo-operator",
     ):
         try:
             application.state.input_registry.verify(
@@ -246,7 +399,7 @@ def create_app(
                     agent_backend=AgentBackend.RULE,
                     scenario_ids=[f"failure_drill:{request.drill_type.value}"],
                 ),
-                requested_by=operator_id,
+                requested_by=principal.subject,
                 idempotency_key=idempotency_key,
             )
             return created_run
@@ -286,14 +439,11 @@ def create_app(
     def create_run(
         request: RunCreateRequest,
         session: SessionDependency,
+        principal: OperatorPrincipal,
         idempotency_key: Annotated[
             str | None,
             Header(alias="Idempotency-Key", min_length=1, max_length=128),
         ] = None,
-        operator_id: Annotated[
-            str,
-            Header(alias="X-Operator-ID", min_length=1, max_length=128),
-        ] = "demo-operator",
     ):
         try:
             application.state.input_registry.verify(
@@ -302,7 +452,7 @@ def create_app(
             )
             created_run, _ = RunRepository(session).create(
                 request,
-                requested_by=operator_id,
+                requested_by=principal.subject,
                 idempotency_key=idempotency_key,
             )
             return created_run
@@ -338,7 +488,7 @@ def create_app(
         summary="Get a persisted optimization run",
         responses={404: {"model": ErrorResponse}},
     )
-    def get_run(run_id: UUID, session: SessionDependency):
+    def get_run(run_id: UUID, session: SessionDependency, _principal: AnyPrincipal):
         try:
             return RunRepository(session).get(run_id)
         except RunNotFoundError as exc:
@@ -360,7 +510,9 @@ def create_app(
             409: {"model": ErrorResponse},
         },
     )
-    def get_run_result(run_id: UUID, session: SessionDependency):
+    def get_run_result(
+        run_id: UUID, session: SessionDependency, _principal: AnyPrincipal
+    ):
         try:
             return RunRepository(session).result(run_id)
         except RunNotFoundError as exc:
@@ -387,7 +539,9 @@ def create_app(
         summary="Get the immutable operator decision for a candidate",
         responses={404: {"model": ErrorResponse}},
     )
-    def get_approval(run_id: UUID, session: SessionDependency):
+    def get_approval(
+        run_id: UUID, session: SessionDependency, _principal: AnyPrincipal
+    ):
         try:
             return ApprovalRepository(session).get(run_id)
         except ApprovalNotFoundError as exc:
@@ -414,16 +568,13 @@ def create_app(
         run_id: UUID,
         request: ApprovalCreateRequest,
         session: SessionDependency,
-        operator_id: Annotated[
-            str,
-            Header(alias="X-Operator-ID", min_length=1, max_length=128),
-        ] = "demo-operator",
+        principal: ApproverPrincipal,
     ):
         try:
             return ApprovalRepository(session).create(
                 run_id,
                 request,
-                decided_by=operator_id,
+                decided_by=principal.subject,
             )
         except RunNotFoundError as exc:
             return JSONResponse(
@@ -449,7 +600,9 @@ def create_app(
         summary="Get the persisted run and decision timeline",
         responses={404: {"model": ErrorResponse}},
     )
-    def get_timeline(run_id: UUID, session: SessionDependency):
+    def get_timeline(
+        run_id: UUID, session: SessionDependency, _principal: AnyPrincipal
+    ):
         try:
             return ApprovalRepository(session).timeline(run_id)
         except RunNotFoundError as exc:
@@ -475,19 +628,16 @@ def create_app(
     def simulate_notice(
         request: NoticeCreateRequest,
         session: SessionDependency,
+        principal: OperatorPrincipal,
         idempotency_key: Annotated[
             str | None,
             Header(alias="Idempotency-Key", min_length=1, max_length=120),
         ] = None,
-        operator_id: Annotated[
-            str,
-            Header(alias="X-Operator-ID", min_length=1, max_length=128),
-        ] = "demo-operator",
     ):
         try:
             return NoticeRepository(session).create_simulated(
                 request,
-                created_by=operator_id,
+                created_by=principal.subject,
                 idempotency_key=idempotency_key,
             )
         except RunNotFoundError as exc:
@@ -515,6 +665,7 @@ def create_app(
     )
     def list_notices(
         session: SessionDependency,
+        _principal: AnyPrincipal,
         limit: Annotated[int, Query(ge=1, le=100)] = 25,
         offset: Annotated[int, Query(ge=0)] = 0,
     ) -> NoticeListResponse:
@@ -531,7 +682,9 @@ def create_app(
         summary="Get a preserved operational notice and interpretation",
         responses={404: {"model": ErrorResponse}},
     )
-    def get_notice(notice_id: UUID, session: SessionDependency):
+    def get_notice(
+        notice_id: UUID, session: SessionDependency, _principal: AnyPrincipal
+    ):
         try:
             return NoticeRepository(session).get(notice_id)
         except NoticeNotFoundError as exc:
@@ -550,7 +703,9 @@ def create_app(
         summary="Get the operational notice linked to a replanning run",
         responses={404: {"model": ErrorResponse}},
     )
-    def get_run_notice(run_id: UUID, session: SessionDependency):
+    def get_run_notice(
+        run_id: UUID, session: SessionDependency, _principal: AnyPrincipal
+    ):
         try:
             return NoticeRepository(session).get_by_candidate(run_id)
         except NoticeNotFoundError as exc:
@@ -570,6 +725,7 @@ def create_app(
     )
     def list_runs(
         session: SessionDependency,
+        _principal: AnyPrincipal,
         limit: Annotated[int, Query(ge=1, le=100)] = 25,
         offset: Annotated[int, Query(ge=0)] = 0,
     ) -> RunListResponse:
@@ -596,14 +752,11 @@ def create_app(
         run_id: UUID,
         request: DispatchCreateRequest,
         session: SessionDependency,
+        principal: OperatorPrincipal,
         control_key: Annotated[
             str | None,
             Header(alias="X-Control-Key", max_length=256),
         ] = None,
-        operator_id: Annotated[
-            str,
-            Header(alias="X-Operator-ID", min_length=1, max_length=128),
-        ] = "demo-operator",
     ):
         configured = application.state.control_api_key
         accepted = bool(
@@ -617,7 +770,7 @@ def create_app(
             ).dispatch(
                 run_id,
                 interval_index=request.interval_index,
-                requested_by=operator_id,
+                requested_by=principal.subject,
                 credential_accepted=accepted,
                 credential_configured=bool(configured),
                 command_id=request.command_id,
@@ -647,6 +800,7 @@ def create_app(
     def list_dispatch_simulations(
         run_id: UUID,
         session: SessionDependency,
+        _principal: AnyPrincipal,
         control_key: Annotated[
             str | None,
             Header(alias="X-Control-Key", max_length=256),
@@ -683,6 +837,7 @@ def create_app(
     )
     def list_security_events(
         session: SessionDependency,
+        _principal: AnyPrincipal,
         limit: Annotated[int, Query(ge=1, le=200)] = 100,
         offset: Annotated[int, Query(ge=0)] = 0,
     ) -> SecurityEventListResponse:
@@ -711,14 +866,11 @@ def create_app(
     def activate_emergency_safe_state(
         request: EmergencySafeStateRequest,
         session: SessionDependency,
+        principal: AdminPrincipal,
         emergency_key: Annotated[
             str | None,
             Header(alias="X-Emergency-Key", max_length=256),
         ] = None,
-        operator_id: Annotated[
-            str,
-            Header(alias="X-Operator-ID", min_length=1, max_length=128),
-        ] = "demo-operator",
     ):
         configured = application.state.emergency_api_key
         accepted = bool(
@@ -731,7 +883,7 @@ def create_app(
                 application.state.control_gateway,
             ).safe_state(
                 reason=request.reason,
-                requested_by=operator_id,
+                requested_by=principal.subject,
                 credential_accepted=accepted,
                 credential_configured=bool(configured),
             )
@@ -748,6 +900,7 @@ def create_app(
         responses={401: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
     )
     def controller_status(
+        _principal: AnyPrincipal,
         control_key: Annotated[
             str | None,
             Header(alias="X-Control-Key", max_length=256),
@@ -793,14 +946,11 @@ def create_app(
         run_id: UUID,
         request: ControlSimulationCreateRequest,
         session: SessionDependency,
+        principal: OperatorPrincipal,
         control_key: Annotated[
             str | None,
             Header(alias="X-Control-Key", min_length=1, max_length=256),
         ] = None,
-        operator_id: Annotated[
-            str,
-            Header(alias="X-Operator-ID", min_length=1, max_length=128),
-        ] = "demo-operator",
     ):
         try:
             authenticate_control_key(control_key, application.state.control_api_key)
@@ -810,7 +960,7 @@ def create_app(
             ).create(
                 run_id,
                 interval_index=request.interval_index,
-                requested_by=operator_id,
+                requested_by=principal.subject,
             )
         except ControlAuthenticationError as exc:
             disabled = not application.state.control_api_key
@@ -860,6 +1010,7 @@ def create_app(
     def list_control_simulations(
         run_id: UUID,
         session: SessionDependency,
+        _principal: AnyPrincipal,
         control_key: Annotated[
             str | None,
             Header(alias="X-Control-Key", min_length=1, max_length=256),
@@ -909,7 +1060,9 @@ def create_app(
             409: {"model": ErrorResponse},
         },
     )
-    def cancel_run(run_id: UUID, session: SessionDependency):
+    def cancel_run(
+        run_id: UUID, session: SessionDependency, principal: OperatorPrincipal
+    ):
         try:
             return RunRepository(session).request_cancellation(run_id)
         except RunNotFoundError as exc:

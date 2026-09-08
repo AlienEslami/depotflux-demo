@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
+# This verifier invokes fixed Docker Compose commands without a shell.
+import subprocess  # nosec B404
 from datetime import datetime, timezone
 from pathlib import Path
 
 
 def _exec(compose: list[str], service: str, command: list[str]) -> dict:
-    completed = subprocess.run(
+    # The executable and Compose action are fixed; values remain separate argv.
+    completed = subprocess.run(  # nosec B603
         [*compose, "exec", "-T", service, *command],
         capture_output=True,
         text=True,

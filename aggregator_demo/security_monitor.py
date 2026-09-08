@@ -5,7 +5,7 @@ import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import URLError
 from urllib.parse import urlsplit
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 
 def validate_api_url(value: str) -> str:
@@ -22,6 +22,18 @@ def validate_api_url(value: str) -> str:
 
 
 API_URL = validate_api_url(os.environ.get("DEMO_API_URL", "http://api:8000"))
+API_KEY = os.environ.get("DEMO_MONITOR_API_KEY")
+
+
+def security_events_request() -> Request:
+    headers = {"Accept": "application/json"}
+    if API_KEY:
+        headers["Authorization"] = f"Bearer {API_KEY}"
+    return Request(
+        f"{API_URL}/api/v1/security/events?limit=200",
+        headers=headers,
+        method="GET",
+    )
 
 
 class MonitorHandler(BaseHTTPRequestHandler):
@@ -35,7 +47,7 @@ class MonitorHandler(BaseHTTPRequestHandler):
         try:
             # API_URL is restricted to HTTP(S) by validate_api_url above.
             with urlopen(  # nosec B310
-                f"{API_URL}/api/v1/security/events?limit=200", timeout=2
+                security_events_request(), timeout=2
             ) as response:
                 events = json.load(response)["items"]
         except (OSError, URLError, ValueError, KeyError):

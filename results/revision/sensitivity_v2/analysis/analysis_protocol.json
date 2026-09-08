@@ -1,5 +1,0 @@
-{
-  "bootstrap_iterations": 10000,
-  "bootstrap_unit": "complete stochastic repetition",
-  "pooling": "no pooling across sensitivity family, arm, or mode"
-}

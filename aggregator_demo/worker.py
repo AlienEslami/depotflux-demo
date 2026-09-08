@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import socket
 import time
@@ -18,6 +19,10 @@ from .optimizer_service import (
     optimize_real_time,
 )
 from .run_repository import RunRepository
+from .observability import configure_logging
+
+
+logger = logging.getLogger("depotflux.worker")
 
 
 def worker_identity() -> str:
@@ -42,9 +47,14 @@ def execute_one(
                     os.environ.get("DEMO_STALE_RUN_SECONDS", "1800")
                 )
             repository.recover_stale(stale_after_seconds=stale_after_seconds)
-            claimed = repository.claim_next(worker_id=worker_id or worker_identity())
+            active_worker_id = worker_id or worker_identity()
+            claimed = repository.claim_next(worker_id=active_worker_id)
             if claimed is None:
                 return False
+            logger.info(
+                "optimization run claimed",
+                extra={"run_id": str(claimed.id), "worker_id": active_worker_id},
+            )
             try:
                 if claimed.optimization_mode != OptimizationMode.SELFISH:
                     raise NotImplementedError(
@@ -159,12 +169,23 @@ def execute_one(
                     failure_code="unexpected_worker_error",
                     failure_message=f"{type(exc).__name__}: {exc}",
                 )
+            completed = repository.get(claimed.id)
+            logger.info(
+                "optimization run finished",
+                extra={
+                    "run_id": str(completed.id),
+                    "worker_id": active_worker_id,
+                    "run_status": completed.status.value,
+                    "failure_code": completed.failure_code,
+                },
+            )
             return True
     finally:
         engine.dispose()
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_logging(os.environ.get("DEMO_LOG_LEVEL", "INFO").upper())
     parser = argparse.ArgumentParser(description="Run the durable optimization worker.")
     parser.add_argument("--once", action="store_true", help="Process at most one queued run.")
     parser.add_argument("--poll-interval", type=float, default=2.0)

@@ -5,8 +5,8 @@ import math
 
 import pyomo.environ as pyo
 
-import app as day_ahead_core
-import app_rt as real_time_core
+from .optimization import day_ahead as day_ahead_core
+from .optimization import real_time as real_time_core
 
 
 class OptimizationInfeasibleError(RuntimeError):
