@@ -596,6 +596,50 @@
         "title": "FailureDrillType",
         "type": "string"
       },
+      "GridTwinAttackRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "attack_type": {
+            "enum": [
+              "false_data_injection",
+              "unauthorized_setpoint"
+            ],
+            "title": "Attack Type",
+            "type": "string"
+          },
+          "input_reference": {
+            "default": "demo/depot-a-8-v1",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Input Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attack_type"
+        ],
+        "title": "GridTwinAttackRequest",
+        "type": "object"
+      },
+      "GridTwinExperimentRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "include_security": {
+            "default": true,
+            "title": "Include Security",
+            "type": "boolean"
+          },
+          "input_reference": {
+            "default": "demo/depot-a-8-v1",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Input Reference",
+            "type": "string"
+          }
+        },
+        "title": "GridTwinExperimentRequest",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1804,6 +1848,182 @@
         "summary": "Queue a controlled solver failure for an operator drill",
         "tags": [
           "runs"
+        ]
+      }
+    },
+    "/api/v1/gridtwin/attacks/simulate": {
+      "post": {
+        "operationId": "simulate_gridtwin_attack_api_v1_gridtwin_attacks_simulate_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Operator-ID",
+            "required": false,
+            "schema": {
+              "default": "demo-operator",
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "X-Operator-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GridTwinAttackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Simulate Gridtwin Attack Api V1 Gridtwin Attacks Simulate Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Run a paired synthetic GridTwin attack and recovery case",
+        "tags": [
+          "gridtwin"
+        ]
+      }
+    },
+    "/api/v1/gridtwin/experiments": {
+      "post": {
+        "operationId": "run_gridtwin_experiment_api_v1_gridtwin_experiments_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Operator-ID",
+            "required": false,
+            "schema": {
+              "default": "demo-operator",
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "X-Operator-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GridTwinExperimentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Run Gridtwin Experiment Api V1 Gridtwin Experiments Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Run the deterministic GridTwin evidence sprint",
+        "tags": [
+          "gridtwin"
+        ]
+      }
+    },
+    "/api/v1/gridtwin/meta": {
+      "get": {
+        "operationId": "gridtwin_meta_api_v1_gridtwin_meta_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Operator-ID",
+            "required": false,
+            "schema": {
+              "default": "demo-operator",
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "X-Operator-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Gridtwin Meta Api V1 Gridtwin Meta Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Describe the synthetic GridTwin evidence experiment",
+        "tags": [
+          "gridtwin"
         ]
       }
     },

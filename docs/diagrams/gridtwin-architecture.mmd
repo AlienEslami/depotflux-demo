@@ -1,0 +1,37 @@
+flowchart LR
+  subgraph ENT[Enterprise / operator zone]
+    UI[GridTwin React dashboard]
+  end
+  subgraph DMZ[Industrial DMZ]
+    API[FastAPI policy and evidence API]
+    DB[(PostgreSQL evidence store)]
+    OPT[DepotFlux Pyomo optimizer]
+    GRID[pandapower CIGRE MV twin]
+  end
+  subgraph SUP[Supervisory / EMS zone]
+    GW[Constraint-aware OT gateway]
+  end
+  subgraph CTRL[Control / field simulation zone]
+    PLC[Synthetic Modbus/TCP PLC]
+    ASSET[EV depot + 500 kWh BESS model]
+  end
+  subgraph MON[Monitoring zone]
+    DET[FDI / set-point detector]
+    AUDIT[Hash-chained audit evidence]
+  end
+
+  UI -->|scenario / approval| API
+  API --> DB
+  API --> OPT
+  OPT -->|EV schedule| GRID
+  GRID -->|voltage, loading, losses, envelope| OPT
+  API -->|approved interval only| GW
+  GW -->|pymodbus FC10 / FC03| PLC
+  PLC -. simulated telemetry .-> ASSET
+  GRID --> DET
+  GW --> DET
+  DET --> AUDIT
+  DET -->|safe validated schedule| GW
+
+  classDef boundary fill:#0f172a,color:#e2e8f0,stroke:#38bdf8;
+  class UI,API,DB,OPT,GRID,GW,PLC,ASSET,DET,AUDIT boundary;

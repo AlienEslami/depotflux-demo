@@ -26,6 +26,7 @@ from .modbus_tcp import (
     ModbusTransportError,
     MAX_UNSIGNED_POWER_KW,
 )
+from .pymodbus_tcp import PymodbusTcpClient
 
 
 def utc_now() -> datetime:
@@ -412,7 +413,10 @@ class OTGatewayClient:
         return GatewayControllerResponse.model_validate(body)
 
 
-def _authenticate_gateway(provided: str | None, configured: str | None) -> None:
+def authenticate_gateway_request(
+    provided: str | None, configured: str | None
+) -> None:
+    """Apply the same credential gate used by the internal gateway routes."""
     if not configured or not provided or not compare_digest(provided, configured):
         raise GatewayPolicyError(
             "gateway_authentication_failed", "invalid supervisory gateway credential"
@@ -425,7 +429,12 @@ def create_gateway_app(
     gateway_key: str | None = None,
 ) -> FastAPI:
     if gateway is None:
-        client = ModbusTcpClient(
+        client_type = (
+            PymodbusTcpClient
+            if os.environ.get("DEMO_MODBUS_DRIVER", "pymodbus").lower() == "pymodbus"
+            else ModbusTcpClient
+        )
+        client = client_type(
             os.environ.get("DEMO_PLC_HOST", "plc-simulator"),
             int(os.environ.get("DEMO_PLC_PORT", "1502")),
             timeout_seconds=float(os.environ.get("DEMO_PLC_TIMEOUT_SECONDS", "1")),
@@ -469,7 +478,7 @@ def create_gateway_app(
         gateway_header: str | None = Header(default=None, alias="X-Gateway-Key"),
     ):
         try:
-            _authenticate_gateway(gateway_header, configured_key)
+            authenticate_gateway_request(gateway_header, configured_key)
         except GatewayPolicyError as exc:
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -496,7 +505,7 @@ def create_gateway_app(
         gateway_header: str | None = Header(default=None, alias="X-Gateway-Key"),
     ):
         try:
-            _authenticate_gateway(gateway_header, configured_key)
+            authenticate_gateway_request(gateway_header, configured_key)
         except GatewayPolicyError as exc:
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -520,7 +529,7 @@ def create_gateway_app(
         gateway_header: str | None = Header(default=None, alias="X-Gateway-Key"),
     ):
         try:
-            _authenticate_gateway(gateway_header, configured_key)
+            authenticate_gateway_request(gateway_header, configured_key)
             return gateway.controller_status()
         except GatewayPolicyError as exc:
             return JSONResponse(

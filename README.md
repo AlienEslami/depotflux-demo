@@ -1,17 +1,77 @@
-# DepotFlux
+# GridTwin Ops
 
-DepotFlux is a software-only electric-fleet energy operations demonstrator. It
-runs day-ahead and remaining-horizon charging optimization, requires a distinct
-human approval role, and carries approved schedule intervals through a
-policy-enforced synthetic Modbus/TCP path. Every accepted and rejected action is
-correlated and persisted for review.
+**GridTwin Ops: Cyber-Resilient DER, BESS and Electric-Fleet Operations Lab**
+extends the existing DepotFlux software demonstrator with an open CIGRE MV
+distribution-grid twin, a 500 kWh/250 kW BESS, AC-validated dispatch and paired
+cyber-attack/recovery evidence. It reuses DepotFlux's Pyomo fleet optimizer,
+FastAPI lifecycle, dashboard, approval boundary, Docker networks, tests and
+synthetic PLC.
 
 The project is deliberately bounded: it does not connect to buses, chargers,
-utility systems, or physical controllers. It is an engineering demonstrator,
-not a production control or safety system.
+utility systems, physical batteries or physical controllers. It is a synthetic
+engineering portfolio demonstrator, not a production control, protection or
+safety system. Safeguards are mapped to selected standards concepts; no
+compliance or certification is claimed.
+
+## Measured minimum-evidence result
+
+Experiment `gridtwin-cigre-mv-depot-a-8-v1` uses pandapower 3.5.4, the open
+CIGRE MV benchmark at a documented 0.55 load scale and the retained eight-bus
+DepotFlux fixture. The table is the canonical one-command Docker result using
+the credential-free HiGHS default.
+
+| Scenario | Cost (CAD) | Export revenue (CAD) | Peak site (kW) | Feeder losses (kWh) | Voltage violation intervals | BESS throughput (kWh) |
+|---|---:|---:|---:|---:|---:|---:|
+| Uncontrolled | 160.070 | 0.000 | 1,600.0 | 2,105.033 | 2 | 0.000 |
+| Cost optimized | 126.301 | 55.962 | 1,600.0 | 2,112.639 | 2 | 801.053 |
+| Grid constrained | 126.907 | 55.962 | 1,371.5 | 2,107.347 | 0 | 882.117 |
+
+The grid constraint removed two half-hour undervoltage intervals and reduced
+the site peak by 228.455 kW versus cost-only operation, reduced modeled feeder
+losses by 5.292 kWh and added 0.606 CAD modeled cost. No thermal violations
+occurred in any case. The deterministic
+attack fixture detected a forged voltage value, exercised the real gateway
+credential gate, denied an unauthorized unsafe set-point with zero observed
+Modbus requests and recovered with zero remaining violations.
+See [measured results](evidence/gridtwin/results.md), the
+[schedule comparison](evidence/gridtwin/schedule-comparison.svg) and the
+[milestone report](docs/GRIDTWIN_MILESTONE_1_REPORT.md). The
+[claim boundary](docs/GRIDTWIN_CLAIM_BOUNDARY.md) governs all wording. An optional local academic
+Gurobi 13.0.2 run is preserved separately in
+[`evidence/gridtwin-gurobi/`](evidence/gridtwin-gurobi/); the
+[solver comparison](docs/GRIDTWIN_SOLVER_COMPARISON.md) explains the measured
+alternate-optimum differences.
+
+## One-command GridTwin demo
+
+Requirements: Windows PowerShell, Docker Desktop and Docker Compose.
+
+```powershell
+./scripts/depotflux.ps1 gridtwin
+```
+
+This builds/starts the existing seven-service lab, applies migrations, runs the
+three grid scenarios plus the paired security cases, and writes JSON, Markdown,
+SVG and hash-chained audit evidence under `evidence/gridtwin/`. It uses only
+bundled synthetic data and the packaged open benchmark; no private credentials,
+cloud service or external data download is needed at runtime.
+
+For an optional faster local run with the owner's installed academic Gurobi
+licence:
+
+```powershell
+$env:DA_SOLVER_ORDER='gurobi,appsi_highs,highs'
+$env:GRIDTWIN_SOLVER_ORDER='gurobi,appsi_highs,highs'
+python scripts/run_gridtwin_evidence.py --output evidence/gridtwin-gurobi
+```
 
 ## What the software demonstrates
 
+- Balanced AC power flow on an open CIGRE MV feeder with named EV/BESS assets.
+- Uncontrolled, cost-only and grid-constrained schedules with economic,
+  electrical, battery and timing metrics.
+- A real `pymodbus` FC10/FC03 TCP path, false-data injection, unauthorized
+  set-point denial, physics-aware detection, safe recovery and hash-chained audit.
 - Versioned FastAPI contracts and a typed React/TypeScript operations dashboard.
 - Durable asynchronous optimization with PostgreSQL, SQLAlchemy and Alembic.
 - Idempotent run submission, immutable approvals and explicit lifecycle states.
@@ -74,6 +134,7 @@ React dashboard
     -> FastAPI policy and workflow service
         -> PostgreSQL evidence store
         -> optimization worker -> Pyomo / HiGHS
+        -> grid evidence -> pandapower CIGRE MV -> EV depot + BESS
         -> synthetic OT gateway -> Modbus/TCP PLC simulator
         -> structured security events -> read-only monitor
 ```
@@ -82,7 +143,11 @@ Compose separates the operator, industrial DMZ, supervisory, control and
 monitoring networks. The PLC and gateway are not published on host ports. Only
 the gateway shares the control network with the PLC.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
+See [the GridTwin architecture](docs/GRIDTWIN_ARCHITECTURE.md),
+[requirements traceability](docs/GRIDTWIN_REQUIREMENTS_TRACEABILITY.md),
+[threat model and risk register](docs/GRIDTWIN_THREAT_MODEL.md),
+[standards concept mapping](docs/GRIDTWIN_STANDARDS_MAPPING.md),
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
 [docs/OT_ASSURANCE_CASE.md](docs/OT_ASSURANCE_CASE.md) for design and assurance
 details.
 
@@ -153,6 +218,12 @@ product boundary. See [docs/PRODUCT_BOUNDARY.md](docs/PRODUCT_BOUNDARY.md).
 
 ## Current limitations
 
+- The CIGRE snapshot is balanced and synthetic; it is not calibrated to a real
+  feeder, protection system, load profile or field measurement.
+- Grid-constrained dispatch retains the EV MILP schedule and optimizes the BESS
+  against a snapshot-specific AC-derived import envelope; it is not full AC OPF.
+- Detection metrics use two clean and two attack samples and do not establish
+  general precision, recall or operational detection performance.
 - Role keys are local service-account credentials, not an external OIDC/IAM
   integration.
 - Replay state in the gateway is process-local.

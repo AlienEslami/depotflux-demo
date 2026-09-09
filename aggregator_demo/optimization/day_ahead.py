@@ -793,7 +793,7 @@ def apply_disturbances(sc, disturbances):
 #   = sum((S_buy[t]  - P[t]) × w_buy[t])   ← margin on energy sold to PTO
 #   + sum((P[t] - S_sell[t]) × w_sell[t])  ← margin on V2G resold to grid
 # ==============================================================================
-def solvePTO(sc, *, time_limit_seconds=None):
+def solvePTO(sc, *, time_limit_seconds=None, mip_gap=None):
     T       = sc['T_steps']
     P       = sc['P']
     S_buy   = sc['S_buy']
@@ -945,7 +945,11 @@ def solvePTO(sc, *, time_limit_seconds=None):
         if time_limit_seconds is not None
         else float(os.environ.get('DA_SOLVER_TIME_LIMIT', '300'))
     )
-    mip_gap = float(os.environ.get('DA_SOLVER_MIP_GAP', '0.04'))
+    mip_gap = (
+        float(mip_gap)
+        if mip_gap is not None
+        else float(os.environ.get('DA_SOLVER_MIP_GAP', '0.04'))
+    )
     solver_tee = parse_bool(os.environ.get('DA_SOLVER_TEE'), default=False)
     configured_order = os.environ.get(
         'DA_SOLVER_ORDER', 'gurobi,appsi_highs,highs,cbc,glpk'

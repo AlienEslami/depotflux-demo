@@ -1,4 +1,4 @@
-name: depotflux-ot-lab
+name: gridtwin-ops-lab
 
 x-python-service: &python-service
   build:
@@ -56,6 +56,7 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./.demo/backups:/backups
+      - ./evidence:/app/evidence
     networks:
       enterprise_operator: {}
       industrial_dmz: {}
@@ -116,6 +117,7 @@ services:
       DEMO_PLC_PORT: "1502"
       DEMO_PLC_TIMEOUT_SECONDS: "1"
       DEMO_PLC_RETRIES: "2"
+      DEMO_MODBUS_DRIVER: pymodbus
     networks:
       supervisory_ems: {}
       control_plc:
@@ -170,30 +172,30 @@ services:
 
 networks:
   enterprise_operator:
-    name: depotflux-enterprise-operator
+    name: gridtwin-enterprise-operator
     ipam:
       config:
         - subnet: 172.29.10.0/24
   industrial_dmz:
-    name: depotflux-industrial-dmz
+    name: gridtwin-industrial-dmz
     internal: true
     ipam:
       config:
         - subnet: 172.29.20.0/24
   supervisory_ems:
-    name: depotflux-supervisory-ems
+    name: gridtwin-supervisory-ems
     internal: true
     ipam:
       config:
         - subnet: 172.29.30.0/24
   control_plc:
-    name: depotflux-control-plc
+    name: gridtwin-control-plc
     internal: true
     ipam:
       config:
         - subnet: 172.29.40.0/24
   monitoring:
-    name: depotflux-monitoring
+    name: gridtwin-monitoring
     internal: true
     ipam:
       config:
@@ -201,4 +203,4 @@ networks:
 
 volumes:
   demo_database:
-    name: depotflux-demo-database
+    name: gridtwin-ops-database

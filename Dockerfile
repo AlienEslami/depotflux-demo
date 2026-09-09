@@ -18,6 +18,7 @@ COPY --chown=demo:demo alembic.ini ./
 COPY --chown=demo:demo aggregator_demo ./aggregator_demo
 COPY --chown=demo:demo migrations ./migrations
 COPY --chown=demo:demo scripts/container-api.sh ./scripts/container-api.sh
+COPY --chown=demo:demo scripts/run_gridtwin_evidence.py ./scripts/run_gridtwin_evidence.py
 RUN chmod 0555 scripts/container-api.sh
 
 USER demo

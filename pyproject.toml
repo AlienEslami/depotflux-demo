@@ -14,9 +14,11 @@ dependencies = [
   "flask",
   "highspy",
   "httpx",
-  "numpy",
-  "pandas",
+  "numpy<2.5,>=1.26",
+  "pandas>=2.3,<3",
+  "pandapower==3.5.4",
   "pydantic>=2",
+  "pymodbus==3.15.0",
   "pyomo",
   "psycopg[binary]",
   "SQLAlchemy>=2,<3",
@@ -42,3 +44,11 @@ aggregator_demo = ["demo_data/*.json"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["aggregator_demo"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

@@ -32,6 +32,7 @@ def optimize_day_ahead(
     optimization_mode: str,
     v2g_enabled: bool,
     solver_time_limit_seconds: float | None = None,
+    solver_mip_gap: float | None = None,
 ) -> dict:
     """Run the existing mathematical core without legacy job-file side effects."""
     optimizer_input = copy.deepcopy(input_data)
@@ -44,10 +45,10 @@ def optimize_day_ahead(
         current_timestep=1,
     )
     try:
-        model = day_ahead_core.solvePTO(
-            scalars,
-            time_limit_seconds=solver_time_limit_seconds,
-        )
+        solver_options = {"time_limit_seconds": solver_time_limit_seconds}
+        if solver_mip_gap is not None:
+            solver_options["mip_gap"] = solver_mip_gap
+        model = day_ahead_core.solvePTO(scalars, **solver_options)
     except TimeoutError as exc:
         raise OptimizationTimeoutError(str(exc)) from exc
     if model is None:

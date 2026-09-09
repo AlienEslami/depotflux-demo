@@ -370,3 +370,17 @@ class SecurityEventListResponse(StrictContract):
     items: list[SecurityEventResponse]
     limit: int
     offset: int
+
+
+class GridTwinExperimentRequest(StrictContract):
+    input_reference: str = Field(
+        default="demo/depot-a-8-v1", min_length=1, max_length=255
+    )
+    include_security: bool = True
+
+
+class GridTwinAttackRequest(StrictContract):
+    attack_type: Literal["false_data_injection", "unauthorized_setpoint"]
+    input_reference: str = Field(
+        default="demo/depot-a-8-v1", min_length=1, max_length=255
+    )

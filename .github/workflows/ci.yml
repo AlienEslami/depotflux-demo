@@ -32,7 +32,10 @@ jobs:
         run: python -m bandit -q -r aggregator_demo scripts
 
       - name: Run tests
-        run: python -m pytest -q
+        run: |
+          python -m coverage run -m pytest -q --junitxml=.demo/test-results.xml
+          python -m coverage xml -o .demo/coverage.xml
+          python -m coverage json -o .demo/coverage.json
 
       - name: Check versioned API contract
         run: python scripts/export_openapi.py --check

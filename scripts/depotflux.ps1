@@ -1,6 +1,6 @@
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('start', 'stop', 'status', 'seed', 'verify', 'backup', 'restore', 'reset', 'credentials', 'config')]
+    [ValidateSet('start', 'stop', 'status', 'seed', 'verify', 'gridtwin', 'backup', 'restore', 'reset', 'credentials', 'config')]
     [string]$Command = 'status',
     [string]$BackupPath,
     [switch]$Force
@@ -47,6 +47,14 @@ switch ($Command) {
     }
     'verify' {
         & (Join-Path $PSScriptRoot 'run_ot_evidence.ps1')
+    }
+    'gridtwin' {
+        if (-not (Test-Path -LiteralPath $environmentFile)) {
+            & (Join-Path $PSScriptRoot 'start_ot_lab.ps1')
+        } else {
+            Invoke-Compose up -d --build --wait
+        }
+        Invoke-Compose exec -T api python scripts/run_gridtwin_evidence.py
     }
     'backup' {
         Require-EnvironmentFile

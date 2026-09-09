@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, cite it as below."
+title: "GridTwin Ops: Cyber-Resilient DER, BESS and Electric-Fleet Operations Lab"
+type: software
+authors:
+  - family-names: Eslami
+    given-names: Ali
+version: 0.1.0
+abstract: >-
+  A synthetic, software-only portfolio demonstrator extending DepotFlux with a
+  pandapower CIGRE MV feeder, EV/BESS dispatch, Modbus/TCP telemetry and paired
+  cyber-attack recovery evidence.

@@ -43,6 +43,8 @@ from .contracts import (
     DemoInputListResponse,
     ErrorResponse,
     FailureDrillCreateRequest,
+    GridTwinAttackRequest,
+    GridTwinExperimentRequest,
     HealthResponse,
     NoticeCreateRequest,
     NoticeListResponse,
@@ -86,6 +88,7 @@ from .ot_gateway import OTGatewayClient
 from .run_repository import RunConflictError, RunNotFoundError, RunRepository
 from .observability import RequestMetrics, configure_logging, correlation_id
 from .settings import RuntimeSettings
+from .gridtwin.service import run_evidence_sprint
 
 
 def database_session(request: Request):
@@ -147,6 +150,7 @@ def create_app(
     control_gateway=None,
     emergency_api_key: str | None = None,
     runtime_settings: RuntimeSettings | None = None,
+    gridtwin_runner=None,
 ) -> FastAPI:
     settings = runtime_settings or RuntimeSettings.from_environment()
     engine = create_database_engine(database_url or settings.database_url)
@@ -169,6 +173,7 @@ def create_app(
     application.state.auth_config = settings.auth
     application.state.request_metrics = RequestMetrics()
     application.state.input_registry = DemoInputRegistry(input_root)
+    application.state.gridtwin_runner = gridtwin_runner or run_evidence_sprint
     application.state.control_api_key = control_api_key or os.environ.get(
         "DEMO_CONTROL_API_KEY"
     )
@@ -1081,6 +1086,60 @@ def create_app(
                     message=str(exc),
                 ).model_dump(mode="json"),
             )
+
+    @application.get(
+        "/api/v1/gridtwin/meta",
+        tags=["gridtwin"],
+        summary="Describe the synthetic GridTwin evidence experiment",
+    )
+    def gridtwin_meta(_principal: AnyPrincipal) -> dict:
+        return {
+            "name": "GridTwin Ops",
+            "benchmark": "CIGRE MV distribution network",
+            "depot_bus": "Bus 11",
+            "bess_bus": "Bus 11",
+            "scenarios": ["uncontrolled", "cost_optimized", "grid_constrained"],
+            "attacks": ["false_data_injection", "unauthorized_setpoint"],
+            "synthetic_only": True,
+            "direct_asset_control": False,
+        }
+
+    @application.post(
+        "/api/v1/gridtwin/experiments",
+        tags=["gridtwin"],
+        summary="Run the deterministic GridTwin evidence sprint",
+    )
+    def run_gridtwin_experiment(
+        body: GridTwinExperimentRequest,
+        _principal: OperatorPrincipal,
+        request: Request,
+    ) -> dict:
+        return request.app.state.gridtwin_runner(
+            body.input_reference,
+            include_security=body.include_security,
+        )
+
+    @application.post(
+        "/api/v1/gridtwin/attacks/simulate",
+        tags=["gridtwin"],
+        summary="Run a paired synthetic GridTwin attack and recovery case",
+    )
+    def simulate_gridtwin_attack(
+        body: GridTwinAttackRequest,
+        _principal: OperatorPrincipal,
+        request: Request,
+    ) -> dict:
+        result = request.app.state.gridtwin_runner(
+            body.input_reference,
+            include_security=True,
+        )
+        return {
+            "experiment_id": result["experiment_id"],
+            "attack_type": body.attack_type,
+            "result": result["security"][body.attack_type],
+            "audit_chain_valid": result["security"]["audit_chain_valid"],
+            "synthetic_only": True,
+        }
 
     return application
 

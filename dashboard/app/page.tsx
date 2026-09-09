@@ -224,6 +224,37 @@ type OperationalNotice = {
   created_at: string;
 };
 
+type GridTwinScenario = {
+  name: string;
+  metrics: {
+    energy_cost_cad: number;
+    export_revenue_cad: number;
+    peak_site_demand_kw: number;
+    battery_throughput_kwh: number;
+    solve_time_seconds: number;
+  };
+  power_flow: {
+    energy_losses_kwh: number;
+    minimum_voltage_pu: number;
+    voltage_violation_intervals: number;
+    thermal_violation_intervals: number;
+  };
+};
+
+type GridTwinEvidence = {
+  experiment_id: string;
+  grid: { hosting_limit_kw: number; depot_bus: string; bess_bus: string };
+  scenarios: Record<
+    'uncontrolled' | 'cost_optimized' | 'grid_constrained',
+    GridTwinScenario
+  >;
+  security: {
+    false_data_injection: { detected: boolean };
+    unauthorized_setpoint: { denied: boolean };
+    audit_chain_valid: boolean;
+  };
+};
+
 type WebMcpDocument = Document & {
   modelContext?: {
     registerTool: (
@@ -253,6 +284,7 @@ const TERMINAL_STATUSES = new Set([
 
 const navigation = [
   { label: 'Operations', icon: CircleGauge, active: true },
+  { label: 'Grid evidence', icon: Activity },
   { label: 'Disruption desk', icon: AlertTriangle },
   { label: 'OT security', icon: ShieldCheck },
   { label: 'Run queue', icon: Waypoints },
@@ -338,6 +370,9 @@ export default function Home() {
     'accepted' | 'rejected' | null
   >(null);
   const [message, setMessage] = useState('');
+  const [gridTwinEvidence, setGridTwinEvidence] =
+    useState<GridTwinEvidence | null>(null);
+  const [runningGridTwin, setRunningGridTwin] = useState(false);
 
   const apiFetch = useCallback(
     (input: RequestInfo | URL, init: RequestInit = {}) => {
@@ -663,6 +698,30 @@ export default function Home() {
       setMessage(error instanceof Error ? error.message : 'Submission failed.');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function runGridTwinEvidence() {
+    setRunningGridTwin(true);
+    setMessage('');
+    try {
+      const response = await apiFetch(`${API_BASE}/api/v1/gridtwin/experiments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input_reference: selectedReference || 'demo/depot-a-8-v1',
+          include_security: true,
+        }),
+      });
+      if (!response.ok) {
+        const error = (await response.json()) as { message?: string };
+        throw new Error(error.message ?? 'GridTwin evidence run failed.');
+      }
+      setGridTwinEvidence((await response.json()) as GridTwinEvidence);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'GridTwin run failed.');
+    } finally {
+      setRunningGridTwin(false);
     }
   }
 
@@ -1111,10 +1170,10 @@ export default function Home() {
           </div>
           <div className="min-w-0">
             <p className="truncate font-semibold tracking-[-0.02em]">
-              DepotFlux
+              GridTwin Ops
             </p>
             <p className="text-xs text-muted-foreground">
-              Electric fleet energy operations
+              Grid-aware fleet and cyber-resilience lab
             </p>
           </div>
         </div>
@@ -1221,16 +1280,96 @@ export default function Home() {
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="text-sm text-cyan-300">
-                  Depot A · Operations desk
+                  Depot A · Grid operations desk
                 </p>
                 <h1 className="mt-1 text-2xl font-semibold tracking-[-0.035em] sm:text-3xl">
-                  Plan, respond, and approve
+                  Optimize, validate, detect, and recover
                 </h1>
               </div>
               <p className="font-mono text-xs text-muted-foreground">
                 48 × 30 MIN · RULE BACKEND
               </p>
             </div>
+
+            <Card className="border-emerald-300/15 bg-card/80 shadow-2xl shadow-black/15">
+              <CardHeader className="border-b border-white/8 pb-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                      GridTwin evidence sprint
+                    </p>
+                    <CardTitle className="mt-1 text-lg">
+                      CIGRE MV · EV depot · 500 kWh BESS
+                    </CardTitle>
+                  </div>
+                  <Button
+                    className="bg-emerald-300 font-semibold text-slate-950 hover:bg-emerald-200"
+                    disabled={!connected || runningGridTwin}
+                    onClick={runGridTwinEvidence}
+                  >
+                    <Activity className="size-4" />
+                    {runningGridTwin ? 'Running AC power flows…' : 'Run evidence'}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-5">
+                {gridTwinEvidence ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-px overflow-hidden rounded-lg bg-white/8 md:grid-cols-3">
+                      {(
+                        [
+                          'uncontrolled',
+                          'cost_optimized',
+                          'grid_constrained',
+                        ] as const
+                      ).map((key) => {
+                        const scenario = gridTwinEvidence.scenarios[key];
+                        return (
+                          <div key={key} className="bg-[#0d1a26] p-4">
+                            <p className="text-xs font-semibold text-slate-300">
+                              {scenario.name}
+                            </p>
+                            <p className="mt-2 font-mono text-xl font-semibold">
+                              ${formatNumber(scenario.metrics.energy_cost_cad, 2)}
+                            </p>
+                            <div className="mt-3 space-y-1 font-mono text-xs text-slate-400">
+                              <p>
+                                Peak {formatNumber(scenario.metrics.peak_site_demand_kw)} kW
+                              </p>
+                              <p>
+                                Min V {formatNumber(scenario.power_flow.minimum_voltage_pu, 4)} pu
+                              </p>
+                              <p>
+                                Violations {scenario.power_flow.voltage_violation_intervals} V /{' '}
+                                {scenario.power_flow.thermal_violation_intervals} thermal
+                              </p>
+                              <p>
+                                Losses {formatNumber(scenario.power_flow.energy_losses_kwh, 2)} kWh
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <Badge variant="outline" className="border-emerald-300/25 text-emerald-200">
+                        FDI {gridTwinEvidence.security.false_data_injection.detected ? 'detected' : 'missed'}
+                      </Badge>
+                      <Badge variant="outline" className="border-emerald-300/25 text-emerald-200">
+                        Unauthorized set-point {gridTwinEvidence.security.unauthorized_setpoint.denied ? 'denied' : 'accepted'}
+                      </Badge>
+                      <Badge variant="outline" className="border-white/10 text-slate-300">
+                        Envelope {formatNumber(gridTwinEvidence.grid.hosting_limit_kw)} kW
+                      </Badge>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    Runs uncontrolled, cost-optimized, and grid-constrained schedules through balanced AC power flow and paired cyber-attack recovery tests. Local execution may take about one minute.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
 
             <Card className="border-white/10 bg-card/80 shadow-2xl shadow-black/15">
               <CardHeader className="border-b border-white/8 pb-4">
