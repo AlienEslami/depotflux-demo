@@ -49,5 +49,7 @@ level, or experience operating CYME/PSS®E/PSCAD/PowerFactory/EMS/DMS/SCADA.
 
 No push, public release, research disclosure or cloud deployment is authorized.
 The repository still has no owner-approved public licence. Before publication,
-the owner must select a licence and complete the existing public-release review,
-dependency/SBOM review, secret/history scan and claims review.
+the owner must select a licence, complete the blocked exact-image CVE assessment,
+obtain independent review and pass CI on the exact publication candidate. The
+bounded local secret/history, dependency/SBOM, advisory and claims reviews are
+recorded in `docs/GRIDTWIN_RELEASE_HARDENING_REPORT.md`.

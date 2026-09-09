@@ -1,14 +1,14 @@
 # GridTwin measured results
 
-Generated: `2026-09-09T00:01:34.337176+00:00`
+Generated: `2026-09-09T02:12:26.575838+00:00`
 
 Synthetic, software-only evidence; no physical asset was controlled.
 
 | Scenario | Cost (CAD) | Export revenue (CAD) | Peak site (kW) | Losses (kWh) | Voltage violation intervals | Thermal violation intervals | BESS throughput (kWh) | Solve time (s) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | Uncontrolled charging | 160.070 | 0.000 | 1600.0 | 2105.033 | 2 | 0 | 0.000 | 0.000 |
-| DepotFlux cost-optimized EV + BESS | 126.201 | 55.962 | 1600.0 | 2115.335 | 2 | 0 | 801.053 | 1.641 |
-| DepotFlux EV + grid-constrained BESS | 126.907 | 55.962 | 1371.5 | 2106.414 | 0 | 0 | 882.117 | 1.647 |
+| DepotFlux cost-optimized EV + BESS | 126.201 | 55.962 | 1600.0 | 2115.335 | 2 | 0 | 801.053 | 2.437 |
+| DepotFlux EV + grid-constrained BESS | 126.907 | 55.962 | 1371.5 | 2106.414 | 0 | 0 | 882.117 | 2.442 |
 
 ## Security evidence
 
@@ -17,11 +17,11 @@ Synthetic, software-only evidence; no physical asset was controlled.
 - Observed Modbus write/read attempts after denial: `0` / `0`; frame transmitted: `False`.
 - Precision/recall/F1: `1.000` / `1.000` / `1.000` on 4 deterministic paired samples.
 - False-positive rate: `0.000`.
-- Mean/max synchronous detection delay: `83.643 ms` / `167.285 ms`.
+- Mean/max synchronous detection delay: `80.458 ms` / `160.916 ms`.
 - Remaining post-recovery violations: `0`.
 - Recovery objective loss: `0.705 CAD`.
 - Audit hash chain valid: `True`.
-- Local GridTwin metadata API p50/p95 (30 requests): `5.781 ms` / `7.503 ms`.
+- Local GridTwin metadata API p50/p95 (30 requests): `3.138 ms` / `4.647 ms`.
 
 ## Baseline and limitations
 

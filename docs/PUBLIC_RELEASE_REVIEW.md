@@ -3,6 +3,32 @@
 This checklist does not authorize a visibility change, merge, tag or public
 release. Those actions require an explicit owner decision.
 
+## GridTwin local candidate review — 2026-09-09 UTC
+
+- The full Python suite passed 97 tests in 188.69 seconds with 73.681% combined
+  line/branch coverage; OpenAPI drift, dashboard lint/type-check/build and the
+  Docker/HiGHS evidence gate passed.
+- Four npm high-severity paths were traced to transitive `sharp` 0.35.2. A
+  narrow override to patched 0.35.4 passed clean install and build checks;
+  `npm audit` then reported zero known findings. No force or disruptive package
+  downgrade was used.
+- `pip-audit` reported zero known findings across 50 resolved Python packages.
+  npm, Python and exact rebuilt-image CycloneDX inventories are committed under
+  `evidence/release/`.
+- The current tree and local reachable history had no matches for the reviewed
+  private-key and high-signal provider-token forms. Publication-claim contexts
+  were all explicit limitations on compliance, certification,
+  production, field, safety, employment or physical-control claims.
+- Docker Scout indexed the rebuilt API, dashboard and database images and wrote
+  their SBOMs, but CVE lookup required an unapproved Docker ID login. Image/OS
+  CVE assessment therefore remains open.
+- Three possible permissive project licences are documented without selecting
+  one. Third-party notice/redistribution review and the owner decision remain
+  open.
+
+Detailed results and limits are in
+`docs/GRIDTWIN_RELEASE_HARDENING_REPORT.md`. Release status is **hold**.
+
 ## Candidate review record — 2026-09-07
 
 Candidate branch: `codex/software-v0.1`. Generated evidence is stored under
@@ -35,9 +61,9 @@ ignored `.demo/` and is not part of the release.
   running/healthy states.
 
 The previous private-branch review also found no committed secrets and no
-fixable high/critical findings in its image scan. Because this candidate changes
-the source and images, the final pushed commit must pass GitHub CI and a fresh
-secret/SBOM/container scan before public release.
+fixable high/critical findings in its image scan. Because the GridTwin candidate
+changes the source and images, the exact publication commit must still pass CI
+and the currently blocked image/OS CVE assessment before public release.
 
 ## Owner decisions still required
 

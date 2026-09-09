@@ -7,9 +7,9 @@ same-host cross-check under the owner's academic, non-commercial licence.
 
 | Measure | Docker / HiGHS 1.15.1 | Local / Gurobi 13.0.2 |
 |---|---:|---:|
-| Total evidence runtime (s) | 75.966 | 33.336 |
-| Cost-only combined solve time (s) | 44.904 | 1.641 |
-| Grid-constrained combined solve time (s) | 44.887 | 1.647 |
+| Total evidence runtime (s) | 82.879 | 33.470 |
+| Cost-only combined solve time (s) | 42.708 | 2.437 |
+| Grid-constrained combined solve time (s) | 42.708 | 2.442 |
 | Cost-only energy cost (CAD) | 126.301 | 126.201 |
 | Grid-constrained energy cost (CAD) | 126.907 | 126.907 |
 | Grid-constrained peak (kW) | 1,371.545 | 1,371.545 |

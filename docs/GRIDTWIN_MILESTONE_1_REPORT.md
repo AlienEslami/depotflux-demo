@@ -27,8 +27,8 @@ Command: `./scripts/depotflux.ps1 gridtwin` (Docker, HiGHS 1.15.1).
 | Scenario | Cost (CAD) | Revenue (CAD) | Peak (kW) | Feeder losses (kWh) | Voltage / thermal violation intervals | BESS throughput (kWh) | Reported combined solve time (s) |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Uncontrolled | 160.070 | 0.000 | 1,600.000 | 2,105.033 | 2 / 0 | 0.000 | 0.000 |
-| Cost optimized | 126.301 | 55.962 | 1,600.000 | 2,112.639 | 2 / 0 | 801.053 | 44.904 |
-| Grid constrained | 126.907 | 55.962 | 1,371.545 | 2,107.347 | 0 / 0 | 882.117 | 44.887 |
+| Cost optimized | 126.301 | 55.962 | 1,600.000 | 2,112.639 | 2 / 0 | 801.053 | 42.708 |
+| Grid constrained | 126.907 | 55.962 | 1,371.545 | 2,107.347 | 0 / 0 | 882.117 | 42.708 |
 
 Against cost-only operation, the grid-constrained schedule reduced peak demand
 by 228.455 kW (14.28%), removed two half-hour voltage-violation intervals,
@@ -42,25 +42,25 @@ observed Modbus writes/reads for the unauthorized set-point, zero remaining
 violations after recovery and a valid audit hash chain. Those
 scores describe only this four-sample deterministic fixture.
 
-The Docker evidence run took 75.966 seconds. The in-process authenticated
-metadata endpoint measured p50 4.094 ms and p95 5.676 ms over 30 requests. A live
+The regenerated Docker evidence run took 82.879 seconds. The in-process authenticated
+metadata endpoint measured p50 2.754 ms and p95 4.153 ms over 30 requests. A live
 request to the deployed container returned HTTP 200. These latency observations
 are not load tests.
 
 ## Optional solver cross-check
 
 The separate local Gurobi 13.0.2 academic-licence run passed the same minimum
-gate in 33.336 seconds. It reproduced the constrained 126.907 CAD cost,
+gate in 33.470 seconds. It reproduced the constrained 126.907 CAD cost,
 1,371.545 kW peak, zero grid violations and 882.117 kWh BESS throughput. Its
-reported constrained combined solve time was 1.647 seconds. Solver-dependent
+reported constrained combined solve time was 2.442 seconds. Solver-dependent
 alternate-optimum differences are documented in
 `docs/GRIDTWIN_SOLVER_COMPARISON.md`; this is not a controlled solver benchmark.
 
 ## Verification
 
 - Pre-change baseline: 83 Python tests passed.
-- Post-change regression: 97 passed in 246.81 seconds; one upstream Starlette
-  TestClient deprecation warning.
+- Post-change regression: 97 passed in 188.69 seconds; an upstream Starlette
+  TestClient deprecation and a sandboxed pytest-cache permission warning.
 - Combined line/branch coverage: 73.681%; statement coverage 77.863%; branch
   coverage 57.156%.
 - OpenAPI drift check: passed.
@@ -99,10 +99,12 @@ alternate-optimum differences are documented in
 - Docker networks are illustrative zones, not industrial firewalls; telemetry is
   not authenticated on the Modbus wire; durable replay coordination, external
   IAM, signed/WORM evidence, SIEM exercise and independent review remain open.
-- Public release remains blocked on owner-selected repository licence,
-  secret/history scan, dependency licence/SBOM/CVE review and final claims review.
-- Existing dashboard dependencies report four high-severity `npm audit` findings;
-  no breaking force-upgrade was applied during this bounded sprint.
+- Local secret/history, dependency-licence, SBOM, npm/Python advisory and claim
+  reviews are recorded in `docs/GRIDTWIN_RELEASE_HARDENING_REPORT.md`. Public
+  release remains blocked on the owner-selected licence, exact image/OS CVE
+  assessment, independent review and CI on the publication candidate.
+- The four npm high-severity paths were remediated with a tested transitive
+  `sharp` 0.35.4 override; no forced or breaking package change was applied.
 
 ## Exact resume statements now defensible
 

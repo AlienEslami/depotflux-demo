@@ -1125,7 +1125,7 @@
         "peak_site_demand_kw": 1599.9999999978345,
         "peak_feeder_demand_kw": 26425.3117509693,
         "battery_throughput_kwh": 801.0526315795727,
-        "solve_time_seconds": 44.90418579999823,
+        "solve_time_seconds": 42.70756066800095,
         "solver_name": "appsi_highs + appsi_highs",
         "unserved_energy_kwh": 0.0
       },
@@ -1884,7 +1884,7 @@
         },
         "solver_name": "appsi_highs",
         "solver_termination": "optimal",
-        "solve_time_seconds": 0.035187695000786334,
+        "solve_time_seconds": 0.01193496200721711,
         "charge_power_kw": [
           -0.0,
           -0.0,
@@ -2300,7 +2300,7 @@
         "peak_site_demand_kw": 1371.545,
         "peak_feeder_demand_kw": 26171.90255796617,
         "battery_throughput_kwh": 882.1170498546226,
-        "solve_time_seconds": 44.88668817799771,
+        "solve_time_seconds": 42.70795070999884,
         "solver_name": "appsi_highs + appsi_highs",
         "unserved_energy_kwh": 0.0
       },
@@ -3059,7 +3059,7 @@
         },
         "solver_name": "appsi_highs",
         "solver_termination": "optimal",
-        "solve_time_seconds": 0.017690073000267148,
+        "solve_time_seconds": 0.012325004005106166,
         "charge_power_kw": [
           -0.0,
           -0.0,
@@ -3350,9 +3350,9 @@
       "reported_voltage_pu": 0.99,
       "physics_estimate_voltage_pu": 0.9457152908304327,
       "residual_pu": 0.04428470916956728,
-      "detection_delay_ms": 0.002219007001258433,
+      "detection_delay_ms": 0.002140994183719158,
       "recovery_policy": "reject untrusted telemetry and use validated physics state",
-      "recovery_time_ms": 0.014351011486724019,
+      "recovery_time_ms": 0.01989699376281351,
       "recovered_voltage_pu": 0.9505960773233736,
       "remaining_violations": 0
     },
@@ -3365,9 +3365,9 @@
       "modbus_write_attempts": 0,
       "modbus_read_attempts": 0,
       "frame_transmitted": false,
-      "detection_delay_ms": 155.21428300417028,
+      "detection_delay_ms": 228.04081899812445,
       "safe_setpoint_kw": 1371.545,
-      "recovery_time_ms": 0.07567700231447816,
+      "recovery_time_ms": 0.01828100357670337,
       "remaining_violations": 0
     },
     "detection_metrics": {
@@ -3381,8 +3381,8 @@
       "recall": 1.0,
       "f1": 1.0,
       "false_positive_rate": 0.0,
-      "mean_detection_delay_ms": 77.60825100558577,
-      "maximum_detection_delay_ms": 155.21428300417028
+      "mean_detection_delay_ms": 114.02147999615408,
+      "maximum_detection_delay_ms": 228.04081899812445
     },
     "objective_loss_cad": 0.6057473318194724,
     "unserved_energy_kwh": 0.0,
@@ -3390,7 +3390,7 @@
     "audit_records": [
       {
         "sequence": 1,
-        "occurred_at": "2026-09-09T00:00:36.131548+00:00",
+        "occurred_at": "2026-09-09T02:11:08.172002+00:00",
         "event_type": "clean_telemetry_evaluated",
         "outcome": "accepted",
         "details": {
@@ -3399,11 +3399,11 @@
           "alert": false
         },
         "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-        "record_hash": "1c443403cb49a8b0c337225e561be8ba7101cc805bcbb0701040f69750dd3d58"
+        "record_hash": "4fb14d735bbf2c5a056c1d9a8d9b4041059cc3ce94e0b80e3017a95544c5c7ce"
       },
       {
         "sequence": 2,
-        "occurred_at": "2026-09-09T00:00:36.131648+00:00",
+        "occurred_at": "2026-09-09T02:11:08.172212+00:00",
         "event_type": "false_data_injection_detected",
         "outcome": "rejected",
         "details": {
@@ -3412,14 +3412,14 @@
           "physics_estimate_voltage_pu": 0.9457152908304327,
           "residual_pu": 0.04428470916956728,
           "threshold_pu": 0.01,
-          "detection_delay_ms": 0.002219007001258433
+          "detection_delay_ms": 0.002140994183719158
         },
-        "previous_hash": "1c443403cb49a8b0c337225e561be8ba7101cc805bcbb0701040f69750dd3d58",
-        "record_hash": "32f8825f18b35574938fb258847874704e414036d51da954285ce91557f381f3"
+        "previous_hash": "4fb14d735bbf2c5a056c1d9a8d9b4041059cc3ce94e0b80e3017a95544c5c7ce",
+        "record_hash": "bd395e45dba799b8351109dcc005e0afcd315412282eca5aa197661eaae9ae26"
       },
       {
         "sequence": 3,
-        "occurred_at": "2026-09-09T00:00:36.131670+00:00",
+        "occurred_at": "2026-09-09T02:11:08.172251+00:00",
         "event_type": "trusted_state_recovery_applied",
         "outcome": "recovered",
         "details": {
@@ -3427,12 +3427,12 @@
           "interval_index": 9,
           "recovered_voltage_pu": 0.9505960773233736
         },
-        "previous_hash": "32f8825f18b35574938fb258847874704e414036d51da954285ce91557f381f3",
-        "record_hash": "6143292a4d52ba1ab8de6b97ee28e1f94fb40f827b7afd0968118a6692931744"
+        "previous_hash": "bd395e45dba799b8351109dcc005e0afcd315412282eca5aa197661eaae9ae26",
+        "record_hash": "cf280bbbef7f8b9d98020c25782e430523fcf9ab0ad6e8de194b86847f84d643"
       },
       {
         "sequence": 4,
-        "occurred_at": "2026-09-09T00:00:36.131683+00:00",
+        "occurred_at": "2026-09-09T02:11:08.172268+00:00",
         "event_type": "clean_setpoint_evaluated",
         "outcome": "accepted",
         "details": {
@@ -3440,12 +3440,12 @@
           "setpoint_kw": 1371.545,
           "alert": false
         },
-        "previous_hash": "6143292a4d52ba1ab8de6b97ee28e1f94fb40f827b7afd0968118a6692931744",
-        "record_hash": "a92e256ae3f2e66216b24fabe678cb62177b0ac0542b07c83a8ebdd95341a031"
+        "previous_hash": "cf280bbbef7f8b9d98020c25782e430523fcf9ab0ad6e8de194b86847f84d643",
+        "record_hash": "a4624d2f82e7337e01d39f921037a076ab5768ef21b9a99b2065f22fc4a15169"
       },
       {
         "sequence": 5,
-        "occurred_at": "2026-09-09T00:00:36.131694+00:00",
+        "occurred_at": "2026-09-09T02:11:08.172283+00:00",
         "event_type": "unauthorized_setpoint_rejected",
         "outcome": "rejected",
         "details": {
@@ -3455,23 +3455,23 @@
           "gateway_policy_code": "gateway_authentication_failed",
           "constraint_validation_passed": false,
           "voltage_if_applied_pu": 0.9452506996645168,
-          "detection_delay_ms": 155.21428300417028,
+          "detection_delay_ms": 228.04081899812445,
           "modbus_write_attempts": 0,
           "modbus_read_attempts": 0,
           "frame_transmitted": false
         },
-        "previous_hash": "a92e256ae3f2e66216b24fabe678cb62177b0ac0542b07c83a8ebdd95341a031",
-        "record_hash": "ca7eb5647c3605e9ea8cd41d274bb1674229e95a3035abc16078d8d7d946183b"
+        "previous_hash": "a4624d2f82e7337e01d39f921037a076ab5768ef21b9a99b2065f22fc4a15169",
+        "record_hash": "909d9782422f2a06ffa9e0fb5f7c468d24df18943127152be925019202bf0eac"
       }
     ]
   },
-  "total_runtime_seconds": 75.96626380899397,
-  "generated_at": "2026-09-09T00:00:36.131899+00:00",
+  "total_runtime_seconds": 82.87913257400214,
+  "generated_at": "2026-09-09T02:11:08.172517+00:00",
   "api_benchmark": {
     "endpoint": "GET /api/v1/gridtwin/meta (in-process TestClient)",
     "sample_count": 30,
-    "p50_ms": 4.094383992196526,
-    "p95_ms": 5.676391010638326,
-    "maximum_ms": 17.86815498780925
+    "p50_ms": 2.753684500930831,
+    "p95_ms": 4.152648994931951,
+    "maximum_ms": 15.239143001963384
   }
 }

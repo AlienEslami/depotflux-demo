@@ -6,7 +6,7 @@
 - Canonical evidence: `evidence/gridtwin/results.json` and
   `evidence/gridtwin/results.md`
 - Optional solver cross-check: `evidence/gridtwin-gurobi/results.json`
-- Gate: passed 2026-09-08; 97 Python tests, OpenAPI drift, dashboard
+- Gate: rerun passed 2026-09-09 UTC; 97 Python tests, OpenAPI drift, dashboard
   lint/type/build and Docker one-command execution verified.
 
 ## Verified career evidence
@@ -23,7 +23,7 @@
   cost-only dispatch, and added 0.606 CAD modeled cost.
 - Preserved a separate optional Gurobi run: it reproduced the 1,371.545 kW
   constrained peak, zero violations and 882.117 kWh BESS throughput; its reported
-  combined solve time was 1.647 seconds versus 44.887 seconds for the Docker
+  combined solve time was 2.442 seconds versus 42.708 seconds for the Docker
   HiGHS run. This is a same-host engineering cross-check, not a controlled solver
   benchmark.
 - Added a real `pymodbus` TCP path, false-data injection and unauthorized
