@@ -17,7 +17,7 @@ dependencies = [
   "httpx",
   "matplotlib>=3.9,<4",
   "numpy<2.5,>=1.26",
-  "pandas>=2.3,<3",
+  "pandas>=2.3,<4",
   "pandapower==3.5.4",
   "pydantic>=2",
   "pymodbus==3.15.0",
