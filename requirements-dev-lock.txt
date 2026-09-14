@@ -1,5 +1,5 @@
 -r requirements-demo-lock.txt
-build==1.6.0
+build==1.6.1
 coverage==7.16.0
 pytest==9.1.1
 setuptools==83.0.0
