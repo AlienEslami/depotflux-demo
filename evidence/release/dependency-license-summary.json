@@ -38,6 +38,8 @@
     "Python-2.0": 1
   },
   "npm_packages_missing_license_metadata": 0,
-  "review_status": "inventory complete; owner/legal notice and redistribution review required",
-  "project_license_selected": false
+  "review_status": "inventory complete; third-party packages retain their own terms; MIT selected for project software and documentation",
+  "project_license_selected": true,
+  "project_license": "MIT",
+  "decision_date": "2026-09-14"
 }

@@ -1,5 +1,31 @@
 # GridTwin local release-hardening report
 
+## Publication-candidate update — 2026-09-14 UTC
+
+Candidate branch: `codex/gridtwin-dynamics`.
+
+- The owner explicitly authorized publication and selected the MIT License. The
+  root notice matches the public retained Agentic-Aggregator upstream and the
+  built wheel contains `dist-info/licenses/LICENSE`.
+- The full Python/coverage run passed 106 tests in 190.74 seconds. The refreshed
+  Cobertura evidence reports 78.99% line and 58.36% branch coverage. Coverage
+  collection now uses relative paths; a post-generation scan found no local
+  workstation paths in verification or dynamics evidence.
+- The dynamics evidence gate passed for all four scenario criteria sets,
+  analytical validation and selected-step/finer-step comparison. Dashboard lint,
+  TypeScript checking, production build and OpenAPI drift checks passed.
+- `pip-audit` and `npm audit` reported zero known vulnerabilities in their current
+  advisory-database scope. Bandit 1.9.4 completed with zero findings. A
+  high-signal working-tree scan returned zero candidate credential filenames.
+- The Docker daemon remained unavailable after a background start attempt, so
+  the exact rebuilt-image CVE lookup could not be completed. This limitation is
+  disclosed rather than represented as a passing scan. GitHub CI on the exact
+  commit and independent human review remain post-push checks.
+
+Owner decision: proceed with a clearly scoped public portfolio candidate despite
+the disclosed image-scan and independent-review limitations; do not interpret
+publication as production, security, safety, field or compliance validation.
+
 Review date: 2026-09-09 UTC. Candidate branch: `codex/gridtwin-ops`.
 Candidate base before this review: `460a32013dfca7f4f321bc98657da1fca584b909`.
 

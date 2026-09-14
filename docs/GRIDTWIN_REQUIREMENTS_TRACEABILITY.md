@@ -34,7 +34,13 @@ it is not a field, safety, certification or compliance assessment.
 | GT-DEP-001 | Provide one-command local execution | `./scripts/depotflux.ps1 gridtwin` builds/starts Compose and creates evidence | Pass |
 | GT-NF-001 | Run offline without private data | Bundled deterministic synthetic fixture and packaged benchmark need no credentials or external API | Pass |
 | GT-NF-002 | Preserve claim boundaries | UI/docs state software-only, synthetic, no direct asset control, no compliance | Pass |
-| GT-NF-003 | Preserve existing behavior | Pre-change 83-test baseline and post-change full regression must pass | Pass: 97 tests |
+| GT-NF-003 | Preserve existing behavior | Pre-change 83-test baseline and post-change full regression must pass | Pass: 106 tests |
+| GT-DYN-001 | Connect the retained schedule to a transparent electrical dynamic model | Highest-import EV/BESS interval drives a source, feeder R-L, PCC capacitance, charger and BESS averaged dq model | Pass |
+| GT-DYN-002 | Exercise required disturbances | Load change, source sag, cleared three-phase fault and inverter trip produce deterministic V/I/f/P/Q traces | Pass |
+| GT-DYN-003 | Apply explicit response criteria | Each scenario records recovery and voltage/current/frequency pass/fail checks plus violation durations | Pass |
+| GT-DYN-004 | Establish numerical credibility | Analytical two-bus check passes and the selected 25 µs step matches a 6.25 µs reference within declared tolerances | Pass |
+| GT-DYN-005 | Return violations to replanning | Failed BESS-trip planning screen emits the existing per-charger derating structured-facts contract | Pass |
+| GT-DYN-006 | Generate a reviewable report | One command writes JSON, Markdown, parameter/results tables and SVG response/sensitivity plots | Pass |
 
 ## Requirements-to-test traceability
 
@@ -50,6 +56,10 @@ it is not a field, safety, certification or compliance assessment.
 | GT-DEP-001 | Compose config, image build and `depotflux.ps1 gridtwin` | `evidence/gridtwin/results.json`; seven running services after execution |
 | GT-NF-001, GT-NF-002 | integration assertions and public-release review | source fixture digest; claim-boundary document |
 | GT-NF-003 | `scripts/verify_gridtwin.ps1` | `evidence/verification/test-results.xml`, `coverage.json`, `coverage.xml` |
+| GT-DYN-001–003 | `tests/test_gridtwin_dynamics.py::test_required_dynamic_scenarios_are_stable_and_meet_declared_criteria` | `evidence/grid-dynamics/results.json` → `scenarios` |
+| GT-DYN-004 | `test_operating_point_matches_closed_form_two_bus_baseline`; `test_selected_solver_step_and_finer_steps_match_reference` | `results.json` → `validation` and `step-sensitivity.svg` |
+| GT-DYN-005 | `test_contingency_violation_returns_bounded_reschedule_feedback` | `results.json` → `schedule_feedback.replanning_structured_facts` |
+| GT-DYN-006 | `tests/test_grid_dynamics_evidence_script.py` | `evidence/grid-dynamics/technical-report.md` and both SVG plots |
 
 ## Minimum gate decision
 
@@ -62,3 +72,9 @@ dashboard lint/type-check/production build passed, and the Docker/HiGHS command
 generated the canonical evidence bundle. The one warning is an upstream
 Starlette TestClient deprecation; the dashboard build also reports a non-blocking
 large-chunk advisory.
+
+The averaged dynamics extension gate passed on 2026-09-14: all four response
+criteria sets, the analytical baseline, the selected-step/finer-step comparisons,
+the report generator and the full 106-test Python regression passed. The 50
+microsecond coarse sensitivity failures remain visible in the generated report
+and do not satisfy the documented selected-step rule.

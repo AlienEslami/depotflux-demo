@@ -6,8 +6,9 @@
 - Canonical evidence: `evidence/gridtwin/results.json` and
   `evidence/gridtwin/results.md`
 - Optional solver cross-check: `evidence/gridtwin-gurobi/results.json`
-- Gate: rerun passed 2026-09-09 UTC; 97 Python tests, OpenAPI drift, dashboard
-  lint/type/build and Docker one-command execution verified.
+- Gate: original rerun passed 2026-09-09 UTC; averaged-dynamics extension passed
+  2026-09-14 UTC with 106 Python tests. Earlier OpenAPI drift, dashboard
+  lint/type/build and Docker one-command execution remain verified.
 
 ## Verified career evidence
 
@@ -15,6 +16,11 @@
   routing, V2G, tariff, approval, API, dashboard, Docker or OT gateway layers.
 - Added pandapower 3.5.4 CIGRE MV AC power flow with the eight-bus depot and a
   500 kWh/250 kW BESS at Bus 11.
+- Added a balanced synchronous-dq averaged electromagnetic-transient model that
+  consumes the retained EV/BESS schedule and simulates load change, voltage sag,
+  a cleared three-phase fault and BESS-inverter trip. The selected 25 µs RK4
+  step passed waveform/extrema comparisons against a 6.25 µs reference; this is
+  not switching-level EMT or licensed-tool evidence.
 - In the documented synthetic 48×30-minute Docker/HiGHS run, cost optimization
   reduced energy cost from 160.070 to 126.301 CAD but retained two
   voltage-violation intervals.
@@ -35,6 +41,10 @@
 - Added APIs, dashboard evidence view, automated tests, one-command Compose
   execution, architecture/threat/risk documents, standards concept mapping and
   requirements-to-test traceability.
+- The documented peak interval (1,600 kW chargers with 228.455 kW BESS support)
+  passed all four scenario-response criteria. Loss of BESS support settled at
+  0.986386 pu, missed the explicit 0.99 pu contingency-planning screen and
+  emitted a 1,371.545 kW depot-import bound in the existing replanning contract.
 
 ## Resume-ready wording (minimum evidence gate passed)
 
@@ -50,6 +60,10 @@
 - Authored requirements, acceptance criteria, threat/risk artifacts and
   requirements-to-test traceability mapped to IEC 62443 and NIST concepts without
   claiming compliance.
+- Built a simulated averaged grid-dynamics study linking an electric-fleet/BESS
+  schedule to four sub-second disturbance cases, analytical validation and
+  finer-step convergence, with explicit fault/recovery criteria and automated
+  technical-report plots.
 
 Claim boundary: synthetic/open data and benchmark network only; no utility
 employment, production/field deployment, physical control, certification,

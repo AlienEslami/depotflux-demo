@@ -21,6 +21,8 @@ flowchart LR
   API --> OPT[Retained DepotFlux Pyomo MILP]
   OPT --> GRID[pandapower CIGRE MV twin]
   GRID -->|AC envelope and metrics| BESS[Grid-aware BESS dispatch]
+  BESS --> DYN[averaged dq dynamic/fault study]
+  DYN -->|charger-derating facts| OPT
   API --> GW[Constraint-aware OT gateway]
   GW -->|pymodbus / Modbus TCP| PLC[Synthetic PLC]
   GRID --> DET[Constraint-aware detection]
@@ -37,6 +39,8 @@ flowchart LR
 | EV optimizer | grid dispatch | 48 import/export energy intervals | validate finite, complete schedule |
 | Grid dispatch | pandapower | depot kW, BESS kW, 0.5 h interval | reject infeasible envelope |
 | pandapower | detector/API | voltage, line/transformer loading, losses | compare with explicit limits |
+| Grid schedule | averaged dq dynamics | peak-interval EV/BESS P/Q trajectory | validate load, sag, fault and inverter-trip response |
+| Dynamic screen | remaining-horizon optimizer | existing charger-derating structured facts | request reschedule without direct dispatch |
 | API | OT gateway | approved schedule interval and UUID | role, approval, hash, freshness, replay, range |
 | OT gateway | PLC simulator | FC10 write and FC03 read via `pymodbus` | allowlisted conduit and bounded retry |
 | Detector | recovery policy | trusted physics state and validated schedule | no untrusted measurement in recovery input |
@@ -53,6 +57,9 @@ flowchart LR
   claimed.
 - The AC-derived conservative import envelope is 1,371.545 kW for this snapshot.
 - Limits are 0.95–1.05 pu, 100% line loading and 100% transformer loading.
+- The separate dynamic layer uses an 11 kV/2 MVA balanced Thevenin equivalent,
+  declared R-L-C and current-control parameters, a 25 microsecond RK4 step and a
+  6.25 microsecond fine-step reference. It is averaged-value, not switching EMT.
 
 ## Control and recovery sequence
 

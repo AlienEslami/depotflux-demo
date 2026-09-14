@@ -1,24 +1,29 @@
-# GridTwin licence options for owner decision
+# GridTwin licence decision
 
-No option is selected by this document, and no licence is granted. The owner
-should confirm software/documentation scope, contribution policy and
-third-party notice obligations with qualified counsel before publication.
+Decision: **MIT**, approved by the repository owner on 2026-09-14 for the
+software and documentation in this product snapshot.
+
+The decisive provenance fact is that the retained Agentic-Aggregator upstream
+is already MIT-licensed as `Copyright (c) 2026 The Agentic-Aggregator authors`.
+GridTwin therefore preserves that exact copyright and permission notice in the
+root `LICENSE`, avoiding an unnecessary second permissive licence over the
+inherited optimization core. MIT remains familiar and low-friction for a
+portfolio demonstrator. It does not provide Apache-2.0's express patent grant.
 
 | Option | Practical fit | Main tradeoff |
 |---|---|---|
-| MIT | Short, familiar permissive terms for portfolio source and examples | Requires preservation of copyright/licence notice; has a warranty disclaimer but no express patent grant |
+| **MIT — selected** | Short, familiar permissive terms matching the retained upstream | Requires preservation of copyright/licence notice; has a warranty disclaimer but no express patent grant |
 | Apache License 2.0 | Permissive use with an express patent grant and patent-termination language | Longer obligations, including licence/notice handling and marking modified files where applicable |
 | BSD 3-Clause | Concise permissive terms with a non-endorsement clause | Similar notice/disclaimer approach to MIT and no express patent grant |
 
-Decision questions:
+Decision record:
 
-1. Should code and documentation use one licence, or should documentation have
-   separate terms?
-2. Is an express patent grant important enough to prefer Apache-2.0's longer
-   notice process?
-3. Who owns each contribution and is authorized to grant the selected terms?
-4. Which third-party notices and source/attribution duties must ship with source,
-   containers and any binary distribution?
+1. Software and project documentation use one MIT licence.
+2. The inherited upstream notice is preserved verbatim.
+3. Dependencies and benchmark resources retain their own terms; they are not
+   relicensed by the project `LICENSE`.
+4. Future contributors must submit work on the understanding that it is
+   distributed under MIT; the project does not require copyright assignment.
 
 The dependency inventory includes LGPL, MPL, Apache, BSD, MIT, CC and other
 terms. Those packages retain their own licences; choosing a permissive project

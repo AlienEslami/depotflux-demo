@@ -12,6 +12,10 @@
   requests after denial, hash-chained audit and validated fallback.
 - Versioned API routes, dashboard panel, tests, Compose command, architecture,
   threat/risk and requirements traceability artifacts.
+- A schedule-linked, balanced synchronous-dq averaged electromagnetic-transient
+  model with source/feeder, charger and BESS current dynamics; four deterministic
+  disturbance cases; analytical and finer-step validation; and rescheduling
+  feedback. This is not switching-level EMT or licensed-tool evidence.
 
 ## Exact statements defensible after the complete verification gate passes
 
@@ -30,6 +34,10 @@
    an architecture/threat model, risk register and requirements-to-test
    traceability, with safeguards mapped to IEC 62443 concepts, NIST CSF 2.0 and
    NIST SP 800-82 Rev. 3 without claiming compliance.
+5. Added a simulated averaged grid-dynamics study linking the retained EV/BESS
+   schedule to load-change, voltage-sag, cleared-fault and inverter-trip cases,
+   with explicit criteria, analytical operating-point validation and fixed-step
+   convergence against a finer reference.
 
 Measured-result wording applies only to experiment
 `gridtwin-cigre-mv-depot-a-8-v1` and the committed
@@ -44,12 +52,15 @@ operation, field commissioning, physical BESS/charger integration, production
 deployment, functional safety, independent cyber assessment, general detector
 accuracy, IEC/NIST compliance or certification, an achieved IEC 62443 security
 level, or experience operating CYME/PSS®E/PSCAD/PowerFactory/EMS/DMS/SCADA.
+The work also does not support claims of MATLAB/Simulink, Simscape Electrical,
+Specialized Power Systems, EMTP, PLECS, RTDS, Typhoon HIL or OPAL-RT experience,
+nor protection settings, switching-level EMT, equipment duty or grid-code
+compliance.
 
 ## Publication and licence gate
 
-No push, public release, research disclosure or cloud deployment is authorized.
-The repository still has no owner-approved public licence. Before publication,
-the owner must select a licence, complete the blocked exact-image CVE assessment,
-obtain independent review and pass CI on the exact publication candidate. The
-bounded local secret/history, dependency/SBOM, advisory and claims reviews are
+The owner selected the MIT License on 2026-09-14, matching the retained upstream,
+and explicitly authorized publication. This does not remove the need to review
+the exact publication candidate, monitor CI and disclose remaining limitations.
+The bounded secret/history, dependency/SBOM, advisory and claims reviews are
 recorded in `docs/GRIDTWIN_RELEASE_HARDENING_REPORT.md`.

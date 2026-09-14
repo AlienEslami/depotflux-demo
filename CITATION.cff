@@ -6,6 +6,7 @@ authors:
   - family-names: Eslami
     given-names: Ali
 version: 0.1.0
+license: MIT
 abstract: >-
   A synthetic, software-only portfolio demonstrator extending DepotFlux with a
   pandapower CIGRE MV feeder, EV/BESS dispatch, Modbus/TCP telemetry and paired

@@ -1,6 +1,6 @@
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('start', 'stop', 'status', 'seed', 'verify', 'gridtwin', 'backup', 'restore', 'reset', 'credentials', 'config')]
+    [ValidateSet('start', 'stop', 'status', 'seed', 'verify', 'gridtwin', 'grid-dynamics', 'backup', 'restore', 'reset', 'credentials', 'config')]
     [string]$Command = 'status',
     [string]$BackupPath,
     [switch]$Force
@@ -55,6 +55,17 @@ switch ($Command) {
             Invoke-Compose up -d --build --wait
         }
         Invoke-Compose exec -T api python scripts/run_gridtwin_evidence.py
+    }
+    'grid-dynamics' {
+        Push-Location $repoRoot
+        try {
+            & python scripts/run_grid_dynamics_evidence.py
+            if ($LASTEXITCODE -ne 0) {
+                throw "grid-dynamics evidence command exited with code $LASTEXITCODE"
+            }
+        } finally {
+            Pop-Location
+        }
     }
     'backup' {
         Require-EnvironmentFile

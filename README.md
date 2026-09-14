@@ -65,9 +65,37 @@ $env:GRIDTWIN_SOLVER_ORDER='gurobi,appsi_highs,highs'
 python scripts/run_gridtwin_evidence.py --output evidence/gridtwin-gurobi
 ```
 
+## Averaged grid-dynamics study
+
+The steady-state GridTwin schedule now feeds a separate transparent balanced
+synchronous-dq averaged electromagnetic-transient study. It includes a stiff
+source, transformer/feeder R-L equivalent, aggregate PCC capacitance, controlled
+charger bank and current-limited BESS inverter. Deterministic cases cover a
+normal load change, voltage sag, cleared balanced three-phase fault and inverter
+trip. The report records voltage, current, one-cycle voltage-angle frequency,
+active/reactive power, recovery, violation durations, analytical validation and
+fixed-step sensitivity against a 6.25 microsecond reference.
+
+```powershell
+./scripts/depotflux.ps1 grid-dynamics
+```
+
+This creates `evidence/grid-dynamics/results.json`, `technical-report.md` and two
+SVG plots. The selected 25 microsecond RK4 step and finer test step pass the
+declared response/error gates; a 50 microsecond coarse run is deliberately kept
+to show sensitivity. A loss-of-BESS screen emits the same charger-derating facts
+consumed by the existing remaining-horizon replanner. See
+[the study design](docs/GRID_DYNAMICS_STUDY.md).
+
+Tool boundary: this is a project-owned, averaged-value Python model. It is not a
+switching-level EMT model and does not claim MATLAB/Simulink, PSCAD, EMTP,
+PowerFactory, PLECS, RTDS, Typhoon HIL or OPAL-RT use.
+
 ## What the software demonstrates
 
 - Balanced AC power flow on an open CIGRE MV feeder with named EV/BESS assets.
+- Schedule-linked averaged electrical transients with explicit solver-step and
+  fault/recovery acceptance criteria.
 - Uncontrolled, cost-only and grid-constrained schedules with economic,
   electrical, battery and timing metrics.
 - A real `pymodbus` FC10/FC03 TCP path, false-data injection, unauthorized
@@ -220,6 +248,10 @@ product boundary. See [docs/PRODUCT_BOUNDARY.md](docs/PRODUCT_BOUNDARY.md).
 
 - The CIGRE snapshot is balanced and synthetic; it is not calibrated to a real
   feeder, protection system, load profile or field measurement.
+- The dynamic extension is balanced, positive-sequence and averaged-value. It
+  omits switching ripple, harmonics, unbalance, saturation, detailed protection,
+  OEM controls and machine swing dynamics; its fault current cannot set relays
+  or establish equipment duty.
 - Grid-constrained dispatch retains the EV MILP schedule and optimizes the BESS
   against a snapshot-specific AC-derived import envelope; it is not full AC OPF.
 - Detection metrics use two clean and two attack samples and do not establish
@@ -239,6 +271,7 @@ product boundary. See [docs/PRODUCT_BOUNDARY.md](docs/PRODUCT_BOUNDARY.md).
 ## Security and licence
 
 Read [SECURITY.md](SECURITY.md) before reporting a vulnerability or operating
-the lab. The repository does not yet grant a software or documentation licence;
-public visibility alone would not grant reuse rights. A licence will be added
-only after the repository owner confirms the intended terms.
+the lab. GridTwin Ops software and documentation are released under the
+[MIT License](LICENSE), matching the retained Agentic-Aggregator upstream. All
+third-party packages and benchmark resources retain their own licence terms;
+the recorded dependency inventory is under `evidence/release/`.

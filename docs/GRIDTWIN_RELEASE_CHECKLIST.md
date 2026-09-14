@@ -30,7 +30,13 @@ research disclosure or physical connection.
   their scanner/database scope on 2026-09-09 UTC.
 - [ ] Complete the exact rebuilt-image CVE scan. Docker Scout SBOM generation
   passed, but CVE lookup required a Docker ID login that was not authorized.
-- [ ] Owner selects and approves a repository licence.
+- [x] Owner selected MIT on 2026-09-14, matching the retained upstream; the
+  canonical notice is present in `LICENSE` and package metadata.
+- [x] Run the exact dynamics publication candidate: 106 Python tests, OpenAPI,
+  dashboard lint/type/build, Bandit, pip-audit, npm audit and evidence generation
+  passed on 2026-09-14.
+- [x] Remove local workstation paths from coverage evidence and rescan generated
+  verification/dynamics artifacts.
 
 ## Local release-hardening record
 
@@ -58,6 +64,6 @@ research disclosure or physical connection.
   authenticated service transport, signed/WORM evidence and live SIEM exercise.
 - Demo video/animated walkthrough, independent review and any tested cloud path.
 
-Public release remains **hold**. The completed local checks do not replace the
-owner licence decision, image/OS CVE assessment, independent review or CI on the
-exact publication candidate.
+The owner authorized a scoped portfolio publication on 2026-09-14 with the
+unavailable image/OS CVE lookup and independent review recorded as residual
+limitations. CI on the exact commit remains a required post-push observation.

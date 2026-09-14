@@ -3,6 +3,21 @@
 This checklist does not authorize a visibility change, merge, tag or public
 release. Those actions require an explicit owner decision.
 
+## Owner publication decision — 2026-09-14 UTC
+
+The owner explicitly authorized publication of the GridTwin dynamics candidate
+and selected MIT to match the retained upstream. The exact local candidate
+passed 106 Python tests, OpenAPI checking, dashboard lint/type/build, the
+dynamics evidence gate, Bandit, pip-audit and npm audit. Generated evidence was
+rescanned after converting coverage paths to relative form; no workstation-path
+or high-signal credential filename matches remained.
+
+Known residual limitations accepted for a portfolio release: Docker was
+unavailable for the exact rebuilt-image CVE lookup, GitHub CI can only be
+observed after push, and no independent human usability/security review was
+performed in this session. Public visibility does not imply production,
+security, safety, field or standards validation.
+
 ## GridTwin local candidate review — 2026-09-09 UTC
 
 - The full Python suite passed 97 tests in 188.69 seconds with 73.681% combined
@@ -22,9 +37,9 @@ release. Those actions require an explicit owner decision.
 - Docker Scout indexed the rebuilt API, dashboard and database images and wrote
   their SBOMs, but CVE lookup required an unapproved Docker ID login. Image/OS
   CVE assessment therefore remains open.
-- Three possible permissive project licences are documented without selecting
-  one. Third-party notice/redistribution review and the owner decision remain
-  open.
+- The owner selected MIT on 2026-09-14, matching the retained MIT-licensed
+  Agentic-Aggregator upstream. The root notice and package metadata now record
+  the decision. Third-party packages retain their own terms.
 
 Detailed results and limits are in
 `docs/GRIDTWIN_RELEASE_HARDENING_REPORT.md`. Release status is **hold**.
@@ -67,10 +82,10 @@ and the currently blocked image/OS CVE assessment before public release.
 
 ## Owner decisions still required
 
-Release status remains **hold** until these items are decided and recorded:
+The earlier hold items and their current disposition are:
 
-1. Choose the software and documentation licence. No licence is currently
-   granted.
+1. **Completed 2026-09-14:** choose the software and documentation licence. MIT
+   was selected to match the retained upstream.
 2. Publish from a clean product snapshot, or explicitly accept the inherited
    research history and verify that every historical artifact, identity and
    provenance path may be redistributed. A clean public snapshot is the safer
