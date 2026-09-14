@@ -5,7 +5,7 @@ highspy==1.15.1
 httpx==0.28.1
 matplotlib==3.11.0
 numpy==2.4.6
-pandas==2.3.3
+pandas==3.0.5
 pandapower==3.5.4
 pydantic==2.13.4
 pymodbus==3.15.0
